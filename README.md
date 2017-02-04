@@ -34,26 +34,25 @@ clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --n
 --mclpath < mcl_absolute_path >  --sim_algo < blat|anmol|short >
 --ifl <Inflation rate for MCL>
 
-> -  --help/-h : Help
-> - --faaf: Folder contain only protein fasta files
-> - --identity_close : Similarity between sequences for closly related samples. Default 0.8
-> - --identity_distant : Similarity between sequences for distently related samples. Default 0.25
-> - --ncor: Number of processor to use
-> - --outfile: Output file path
-> - --pblatpath: Path for pblat executable. Default: it will consider it in system path
-> - --pblatpath: Path for pblat executable. Default: it will consider it in system path (pblat)
-> - --makeblastdb: Path for makeblastdb executable. Default: it will consider it in system path (makeblastdb)
-> - --blastp: Path for blastp executable. Default: it will consider it in system path (blastp)
-> - --mclpath: Path for mcl executable. Default: it will consider it in system path (mcl)
-> - --distant: Are samples distaly related. Default: False
-> - --mcl: Run MCL. If not used, result will be provided based on connected sequence list. Default: False
-> - --ifl: Inflation rate for mcl. Default: 4.0
-> - --minseq: Sequences in connected group required for running MCL. Default: 10
-> - --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
-
-> - **blast**: 2*matches/(sum of length of sequences)
-> - **anmol**: matches/tolal alignment length as following. **\*** represents matches. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
-> - **min**: matches/length of shortest sequence in the pair
+-  --help/-h : Help
+- --faaf: Folder contain only protein fasta files
+- --identity_close : Similarity between sequences for closly related samples. Default 0.8
+- --identity_distant : Similarity between sequences for distently related samples. Default 0.25
+- --ncor: Number of processor to use
+- --outfile: Output file path
+- --pblatpath: Path for pblat executable. Default: it will consider it in system path
+- --pblatpath: Path for pblat executable. Default: it will consider it in system path (pblat)
+- --makeblastdb: Path for makeblastdb executable. Default: it will consider it in system path (makeblastdb)
+- --blastp: Path for blastp executable. Default: it will consider it in system path (blastp)
+- --mclpath: Path for mcl executable. Default: it will consider it in system path (mcl)
+- --distant: Are samples distaly related. Default: False
+- --mcl: Run MCL. If not used, result will be provided based on connected sequence list. Default: False
+- --ifl: Inflation rate for mcl. Default: 4.0
+- --minseq: Sequences in connected group required for running MCL. Default: 10
+- --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
+- - **blast**: 2*matches/(sum of length of sequences)
+- - **anmol**: matches/tolal alignment length as following. **\*** represents matches. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
+- - **min**: matches/length of shortest sequence in the pair
 > - <font face="Courier New">ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ</font>
 > - <font face="Courier New">---\*\*\*\*\*--\*\*\*\*\*\*---\*\*\*-\*\*--\*\*\*\*\*\*-----</font>
 > - <font face="Courier New">---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----</font>
