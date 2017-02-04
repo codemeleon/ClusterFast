@@ -48,8 +48,8 @@ clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --n
 > - --distant: Are samples distaly related. Default: False
 > - --mcl: Run MCL. If not used, result will be provided based on connected sequence list. Default: False
 > - --ifl: Inflation rate for mcl. Default: 4.0
-> - --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
 > - --minseq: Sequences in connected group required for running MCL. Default: 10
+> - --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
 
 > - **blast**: 2*matches/(sum of length of sequences)
 > - **anmol**: matches/tolal alignment length as following. **\*** represents matches. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
