@@ -53,9 +53,9 @@ clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --n
   * **blast**: 2*matches/(sum of length of sequences)
   * **anmol**: matches/tolal alignment length as following. **\*** represents matches. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
   * **min**: matches/length of shortest sequence in the pair
-    * "ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ"
-    * "---\*\*\*\*\*--\*\*\*\*\*\*---\*\*\*-\*\*--\*\*\*\*\*\*-----"
-    * "---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----"
+    * ```ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ```
+    * ```---\*\*\*\*\*--\*\*\*\*\*\*---\*\*\*-\*\*--\*\*\*\*\*\*-----```
+    * ```---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----```
 
 
 <H3>License</H3>
