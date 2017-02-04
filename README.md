@@ -26,7 +26,7 @@ python setup.py install
 
 <H3>Usage</H3>
 
-clustfast --faaf < protein_seq_folder > --identity < sequence_similarity > --ncor < #_of_cores_to_use > --outfile < outputfile > --blatpath < blat_absolute_path >
+clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --ncor < #_of_cores_to_use > --outfile < outputfile > --blatpath < blat_absolute_path >
 --identity_close <similarity_for_closely_related_sample>
 --identity_distant <similarity_for_distant_related_sample>
 --blastppath < blast_absolute_path >
@@ -43,20 +43,19 @@ clustfast --faaf < protein_seq_folder > --identity < sequence_similarity > --nco
 > - --pblatpath: Path for pblat executable. Default: it will consider it in system path
 > - --pblatpath: Path for pblat executable. Default: it will consider it in system path (pblat)
 > - --makeblastdb: Path for makeblastdb executable. Default: it will consider it in system path (makeblastdb)
-- --blastp: Path for blastp executable. Default: it will consider it in system path (blastp)
-- --mclpath: Path for mcl executable. Default: it will consider it in system path (mcl)
-- --distant: Are samples distaly related. Default: False
-- --mcl: Run MCL. If not used, result will be provided based on connected sequence list. Default: False
-- --ifl: Inflation rate for mcl. Default: 4.0
-
+> - --blastp: Path for blastp executable. Default: it will consider it in system path (blastp)
+> - --mclpath: Path for mcl executable. Default: it will consider it in system path (mcl)
+> - --distant: Are samples distaly related. Default: False
+> - --mcl: Run MCL. If not used, result will be provided based on connected sequence list. Default: False
+> - --ifl: Inflation rate for mcl. Default: 4.0
 > - --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
 > - --minseq: Sequences in connected group required for running MCL. Default: 10
 >> - **blast**: 2*matches/(sum of length of sequences)
 >> - **anmol**: matches/tolal alignment length as following. **\*** represents matches. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
+>> - **min**: matches/length of shortest sequence in the pair
 >>> - <font face="Courier New">ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ</font>
 >>> - <font face="Courier New">---\*\*\*\*\*--\*\*\*\*\*\*---\*\*\*-\*\*--\*\*\*\*\*\*-----</font>
 >>> - <font face="Courier New">---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----</font>
->>- **min**: matches/length of shortest sequence in the pair
 
 
 <H3>License</H3>
