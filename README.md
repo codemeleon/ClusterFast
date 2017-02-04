@@ -50,12 +50,13 @@ clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --n
 > - --ifl: Inflation rate for mcl. Default: 4.0
 > - --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
 > - --minseq: Sequences in connected group required for running MCL. Default: 10
->> - **blast**: 2*matches/(sum of length of sequences)
->> - **anmol**: matches/tolal alignment length as following. **\*** represents matches. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
->> - **min**: matches/length of shortest sequence in the pair
->>> - <font face="Courier New">ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ</font>
->>> - <font face="Courier New">---\*\*\*\*\*--\*\*\*\*\*\*---\*\*\*-\*\*--\*\*\*\*\*\*-----</font>
->>> - <font face="Courier New">---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----</font>
+
+> - **blast**: 2*matches/(sum of length of sequences)
+> - **anmol**: matches/tolal alignment length as following. **\*** represents matches. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
+> - **min**: matches/length of shortest sequence in the pair
+> - <font face="Courier New">ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ</font>
+> - <font face="Courier New">---\*\*\*\*\*--\*\*\*\*\*\*---\*\*\*-\*\*--\*\*\*\*\*\*-----</font>
+> - <font face="Courier New">---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----</font>
 
 
 <H3>License</H3>
