@@ -515,10 +515,13 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         for cluster in clusters:
             connected_ids += cluster.get()
     func = partial(id_arrange_df, base_names, seq_sizes)
-    dataframes = [pool.apply_async(func, ([fl])) for fl in connected_ids]
-    dataframes = pool.map(func, connected_ids)
+    # dataframest = [pool.apply_async(func, ([fl])) for fl in connected_ids]
+    dataframes = pd.concat(pool.map(func, connected_ids), ignore_index=True)
     del connected_ids
-    dataframes = pd.concat(dataframes, ignore_index=True)
+
+    # dataframes = dataframest[0].get()
+    # for dt in dataframest[1:]:
+    #     dataframes = pd.concat([dataframes, dt.get()], ignore_index=True)
     dataframes = dataframes.sort_values(by=["samp_count", "seq_count"],
                                         ascending=[False, True])
     dataframes["cluster"] = ["cluster_%d" % d for d in
