@@ -1,4 +1,4 @@
-##!/usr/bin/env python
+#!/usr/bin/env python
 
 # This program is used to genarate cluster of highly similar sequences from
 # multiple samples of the same species and very closely replated species where
@@ -114,14 +114,14 @@ def blastpf(blastp, algo, identity, evalue, infile):
             system("%s -db %s.bdb -query %s -outfmt '6 pident qseqid qlen"
                    " sseqid slen length' -evalue %e |"
                    "awk '{if((2*$1*$6/(100.*($3+$5)) >= %f) && ($2 != $4))"
-                   " print $2,$4}' > %s.bst"
+                   " print $2,$4}' >> %s.bst"
                    % (blastp, db.split('.')[0], infile, evalue,
                       identity, infile_))
         elif algo == "min":
             system("%s -db %s.bdb -query %s -outfmt '6 pident qseqid qlen"
                    " sseqid slen length' -evalue %e |"
                    "awk '{if(($1*$6/(100.*($3<=$5?$3:$5)) >= %f) && ($2 != $4))"
-                   " print $2,$4}' > %s.bst"
+                   " print $2,$4}' >> %s.bst"
                    % (blastp, db.split('.')[0], infile, evalue,
                       identity, infile_))
         # elif algo == "max":
@@ -134,8 +134,9 @@ def blastpf(blastp, algo, identity, evalue, infile):
         else: # add information for anm
             system("%s -db %s.bdb -query %s -outfmt '6 pident qseqid qstart"
                    " qend qlen sseqid sstart send slen length' -evalue %e"
-                   " > %s.bst"
+                   " >> %s.bst"
                    % (blastp, db.split('.')[0], infile, evalue, infile_))
+    # ">>" in above code is not error
 
     try:
         if algo == "anm":
@@ -461,6 +462,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         system("rm tmp/*")
         click.echo("Running Blast to indetify distantly related sequences")
         identity = identity_distant
+        print(identity, algo, evalue)
         for uid in sequences:
             if uid.split('___')[0] not in files_n_seq:
                 files_n_seq[uid.split('___')[0]] = [uid]
