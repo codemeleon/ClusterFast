@@ -52,7 +52,7 @@ def flat_list(lst):
             yield x
 
 
-def blat(blatpath, cor, pair):
+def blat(blatpath, cor, keepclean, pair):
     """Pairwise blat comparision to search for the best sequences."""
     if len(pair) == 1:
         return pair[0], []
@@ -88,11 +88,15 @@ def blat(blatpath, cor, pair):
         with open(pair[0], "w") as fout:
             for uid in ids_to_file:
                 fout.write(">%s\n%s\n" % (uid, sequences[uid]))
+        if keepclean:
+            system("rm %s %s" % (pair[1], pair[0].split('.faa')[0]+'.psl'))
         return pair[0], id_pairs
-    except:
+    except IOError:  # TODO: Find relevent error exception
         with open(pair[0], "w") as fout:
             for uid in sequences:
                 fout.write(">%s\n%s\n" % (uid, sequences[uid]))
+        if keepclean:
+            system("rm %s %s" % (pair[1], pair[0].split('.faa')[0]+'.psl'))
         return pair[0], []
 
 
@@ -105,7 +109,7 @@ def makeblastdbf(makeblastdb, infile):
     return
 
 
-def blastpf(blastp, algo, identity, evalue, infile):
+def blastpf(blastp, algo, identity, evalue, keepclean, infile):
     """Running blast and seleting best searches."""
 
     infile_ = infile.split(".")[0]
@@ -151,8 +155,12 @@ def blastpf(blastp, algo, identity, evalue, infile):
             data = data[[1, 5]]
         else:
             data = pd.read_table("%s.bst" % infile_, sep=" ", header=None)
+        if keepclean:
+            system("rm %s.bst" % infile_)
         return data.values
-    except:
+    except IOError:  # TODO: Find relevant error option
+        if keepclean:
+            system("rm %s.bst" % infile_)
         return []
 
 
@@ -204,9 +212,10 @@ def id_arrange_df(sample_ids, sizes, ids):
 
 
 def mclf(prog, algo, mcl, dbcreater, mapper, inflation,
-         identity, evalue, infile):
+         identity, evalue, keepclean, infile):
 
     if prog == 'blast':
+        # TODO: Add file deletion option
         infile_ = infile.split(".")[0]
         grbg = Popen([dbcreater, "-in", infile, "-dbtype", "prot",
                      "-out", "%sdb" % infile],
@@ -336,11 +345,14 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               " It will be used in blast search",
               type=click.Choice(['blast', 'anm', 'min']),
               default='blast', show_default=True)
+@click.option("--keepclean", help="Keep deleting intermediate files"
+              "to suppress disk usage", type=bool, deafult=True,
+              show_default=True)
 @click.option("--seed", help="Random seed for pairing of files",
               type=int, default=1234, show_default=True)
 def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         evalue, distant, mcl, algo, blastp, ifl, makeblastdb,
-        mclpath, minseq, seed):
+        mclpath, minseq, keepclean, seed):
     """Cluster Generating function."""
     """The program is to genrate protein sequence cluster from sequences
     distributed in different sample files base on their sequence similarities
@@ -409,7 +421,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         else:
             cor = ncor//aa_files_count
 
-        func = partial(blat, pblatpath, cor)
+        func = partial(blat, pblatpath, cor, keepclean)
         file_lists_pair = [pool.apply_async(func, ([pair]))
                            for pair in file_pairs]
         aa_files = []
@@ -436,6 +448,9 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                                header=None,
                                usecols=[0, 1, 5, 7, 9, 10, 11, 12,
                                         13, 14, 15, 16])
+        if keepclean:
+            system("rm %s %s" % (aa_files[0],
+                                 aa_files[0].split('.faa')[0]+'.psl'))
         mapped = mapped[(mapped[9] != mapped[13])]
         if algo == 'blast':
             mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].mean(axis=1)) >=
@@ -473,9 +488,10 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                 for sq in files_n_seq[k]:
                     fout.write(">%s\n%s\n" % (sq, sequences[sq]))
         func = partial(makeblastdbf, makeblastdb)
+        # TODO: Merge above function with blastf to delete the dbs
         grbg = [pool.apply_async(func, ([fl])) for fl in glob("tmp/*.faa")]
         del grbg
-        func = partial(blastpf, blastp, algo, identity, evalue)
+        func = partial(blastpf, blastp, algo, identity, evalue, keepclean)
         pairs = [pool.apply_async(func, ([fl])) for fl in glob("tmp/*.faa")]
         for pair in pairs:
             graph.add_edges_from(pair.get())
@@ -508,10 +524,10 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         del connected_idsx
         if distant:
             func = partial(mclf, "blast", algo, mclpath, makeblastdb, blastp,
-                           ifl, identity, evalue)
+                           ifl, identity, evalue, keepclean)
         else:
             func = partial(mclf, "blat", algo, mclpath, None, pblatpath, ifl,
-                           identity, None)
+                           identity, None, keepclean)
 
         clusters = [pool.apply_async(func, ([fl])) for fl in glob("tmp/*.faa")]
         for cluster in clusters:

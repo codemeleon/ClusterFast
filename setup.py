@@ -3,7 +3,7 @@
 # from distutils.core import setup
 from setuptools import setup
 
-setup(name="fastclust",
+setup(name="clusterfast",
       version='0.0.1',
       description="Python script for clustering sequences from closely related\
                     organisms",
