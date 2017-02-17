@@ -21,15 +21,7 @@ python setup.py install
 
 # Usage
 
-clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --ncor < #_of_cores_to_use > --outfile < outputfile > --blatpath < blat_absolute_path > --identity_close
-
-<similarity_for_closely_related_sample>
---identity_distant <similarity_for_distant_related_sample>
---blastppath &lt; blast_absolute_path &gt;
---makeblastdb <makeblastdb_path>
---mclpath &lt; mcl_absolute_path &gt;  --sim_algo &lt; blat|anmol|short &gt;
---ifl <inflation rate="" for="" mcl="">
-</inflation></makeblastdb_path></similarity_for_distant_related_sample></similarity_for_closely_related_sample>
+clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --ncor < #_of_cores_to_use > --outfile < outputfile > --blatpath < blat_absolute_path > --identity_close <similarity_for_closely_related_sample> --identity_distant <similarity_for_distant_related_sample> --blastppath <blast_absolute_path> --makeblastdb <makeblastdb_path> --mclpath <mcl_absolute_path>  --sim_algo <blat|anmol|short> --ifl <inflation_rate_for_mcl> --makeblastdb <makeblastdb_path> --identity_distant <similarity_for_distant_related_sample> --identity_close <similarity_for_closely_related_sample> --keepclean
 
 - --help/-h : Help
 - --faaf: Folder contain only protein fasta files
@@ -45,7 +37,8 @@ clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --n
 - --distant: Are samples distaly related. Default: False
 - --mcl: Run MCL. If not used, result will be provided based on connected sequence list. Default: False
 - --ifl: Inflation rate for mcl. Default: 4.0
-- --minseq: Sequences in connected group required for running MCL. Default: 10
+- --minseq: Sequences in connected group required for running MCL. Default: 1
+- --keepclean: Keep deleting interemediate files to minimise disk usage
 - --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
 
   - **blast**: 2*matches/(sum of length of sequences)
