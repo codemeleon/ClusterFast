@@ -509,21 +509,22 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         system("rm tmp/*")
         click.echo("Running Blast to indetify distantly related sequences")
         identity = identity_distant
-        print(identity, algo, evalue)
+        # print(identity, algo, evalue)
         for uid in sequences:
             if uid.split('___')[0] not in files_n_seq:
                 files_n_seq[uid.split('___')[0]] = [uid]
             else:
                 files_n_seq[uid.split('___')[0]].append(uid)
         for k in files_n_seq:
-            with open("tmp/%s.faa" % file_index[k], "w") as fout:
+            with open("tmp/%s.faa" % k, "w") as fout:
                 for sq in files_n_seq[k]:
                     fout.write(">%s\n%s\n" % (sq, sequences[sq]))
         # func = partial(makeblastdbf, makeblastdb)
         # # TODO: Merge above function with blastf to delete the dbs
         # grbg = [pool.apply_async(func, ([fl])) for fl in glob("tmp/*.faa")]
         # del grbg
-        func = partial(blastpf, blastp, algo, identity, evalue, keepclean)
+        func = partial(blastpf, blastp, algo, identity, evalue, keepclean,
+                       makeblastdb)
         # Ask for seq sizes while copying the files
         pairs = [pool.apply_async(func, ([fl])) for fl in glob("tmp/*.faa")]
         for pair in pairs:
@@ -566,7 +567,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
             base_names.append(base_name)
             for rec in SeqIO.parse(fl, "fasta"):
                 seq_sizes["%s___%s" % (base_name, rec.id)] = len(rec.seq)
-    print(seq_sizes, base_names)
+    # print(seq_sizes, base_names)
     func = partial(id_arrange_df, base_names, seq_sizes)
     # dataframest = [pool.apply_async(func, ([fl])) for fl in connected_ids]
     dataframes = pd.concat(pool.map(func, connected_ids), ignore_index=True)
