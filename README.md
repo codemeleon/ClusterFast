@@ -1,12 +1,20 @@
-# Whats is it?
+# About
 
-ClusterFast is a efficiently (memory and CPU) protein sequence clustering pipeline. It is written in python and use PBLAT (multicore BLAT), BLAST and MCL programs.
+ClusterFast is a scalable, rapid and (CPU and memory) efficient command-line interface for the clustering of orthologous proteins encoded by multiple genomes. ClusterFast was developed by the MiDEP group at the [Malawi Liverpool Wellcome Trust Clinical Research Programme](http://www.mlw.medcol.mw/) (members of [H3ABionet](http://www.h3abionet.org/)), after they became frustrated by the long run time and large memory requirements of currently avaliable clustering programs. 
+
+ClusterFast works by first grouping the most similar protein sequences encoded between a random pair of genomes (files) within the input dataset, then choosing the longest sequence for further comparison to protein sequences selected from another pair of genomes until only one file remains. This is then used to identify less similar or paralogous sequences. The tool is suitable for use with both prokaryotic and eukaryotic genomes. By employing this novel approach, ClusterFast substantially reduces the memory and processing time required for the clustering of orthologous proteins compared to other avaliable programs. 
+
+Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core. 
+
+ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and MCL programs.
 
 # External tools
 
 _Expected to be in system path_ - PBLAT: <http://icebert.github.io/pblat/> - NCBI BLAST suit - mcl: <http://www.micans.org/mcl/>
 
 # Python and module dependencies
+
+There are a number of dependencies required for ClusterFast, with instructions specific to the type of system you have:
 
 - Python 3+ (Python2+ hasn't been tested)
 - NumPy
@@ -18,6 +26,12 @@ _Expected to be in system path_ - PBLAT: <http://icebert.github.io/pblat/> - NCB
 # Installation
 
 python setup.py install
+
+If the installation fails, please contact your system administrator. If you discover any bugs, please let us know by emailing anmol@liv.ac.uk
+
+# Input Files
+
+The input format for ClusterFast is protein sequence files (.faa) of translated amino acid sequences of predicted open reading frames for each genome (sample) in the input dataset. These files can be created using [Prokka](https://github.com/tseemann/prokka). 
 
 # Usage
 
@@ -56,8 +70,5 @@ GPLv3
 
 # Requests
 
-Suggestion and bug reports are welcome.
+Suggestions for improvements are welcome.
 
-# Background
-
-Developed out of frustration of slowness of clustering tools such as orthomcl and proteinortho.
