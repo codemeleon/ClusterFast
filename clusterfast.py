@@ -216,15 +216,6 @@ def blastpf2(algo, identity, evalue, keepclean, infile):
 
 
 
-
-
-
-
-
-
-
-
-
 def randompairs(n_count):
     """Generates random pairs for the given list of the sequences."""
     """If one sequence in remaining, touple with single file will"""
