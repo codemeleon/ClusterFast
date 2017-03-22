@@ -52,7 +52,7 @@ def flat_list(lst):
             yield x
 
 
-def blat(blatpath, cor, keepclean, beginning, pair):
+def blat(blatpath, cor, keepclean, beginning, identity, pair):
     """Pairwise blat comparision to search for the best sequences."""
     if beginning:
         for i, fl in enumerate(pair):
@@ -61,8 +61,8 @@ def blat(blatpath, cor, keepclean, beginning, pair):
             pair[i] = "tmp/%s" % flname
             with open(pair[i], "w") as fout:
                 for rec in SeqIO.parse(fl, 'fasta'):
-                    fout.write(">%s___%s\n%s\n" % (base_name, rec.id,
-                                                   rec.seq))
+                    fout.write(">%s___%s___%d\n%s\n" % (base_name, rec.id,
+                                                        len(rec.seq), rec.seq))
 
     if len(pair) == 1:
         return pair[0], []
@@ -82,27 +82,49 @@ def blat(blatpath, cor, keepclean, beginning, pair):
         mapped = pd.read_table('%s.psl' % base_name, header=None,
                                usecols=[0, 9, 10, 13, 14])
         # TODO:Fix empty file problem
-        mapped = mapped.sort_values(by=[0], ascending=[False])
-        reported = set()
-        unreported_indexes = []
-        for i, row in mapped.iterrows():
-            if row[9] in reported or row[13] in reported:
-                continue
-            unreported_indexes.append(i)
-            reported |= set(row[[9, 13]])
-        mapped = mapped.ix[unreported_indexes]
-        id_pairs = mapped[[9, 13]].values.tolist()
-        long_seq_ids = mapped[mapped[10] > mapped[14]][9].tolist()
-        long_seq_ids += mapped[mapped[10] <= mapped[14]][13].tolist()
-        ids_to_file = set(long_seq_ids) | (set(sequences.keys()) -
-                                           set(flat_list(id_pairs)))
+        # Clsuter and choose
+        mapped = mapped[mapped[0] >
+                        (mapped[[10, 14]].min(axis=1) *
+                         identity)][[9, 13]].values.tolist()
+        connected_ids = nx.Graph()
+        connected_ids.add_edges_from(mapped)
+        nxacc = nx.algorithms.components.connected
+        connected_ids = list(nxacc.connected_components(connected_ids))
+        selected_ref = []
+        for connected_id in  connected_ids:
+            sz = 0
+            t_id = ""
+            for _id in connected_id:
+                sq_sz = len(sequences[_id])
+                if sq_sz > sz:
+                    sz = sq_sz
+                    t_id = _id
+            selected_ref.append(t_id)
+        # print(list(flat_list(mapped)))
+        ids_to_file = set(selected_ref) | (set(sequences.keys()) -
+                                           set(flat_list(mapped)))
+
+        # mapped = mapped.sort_values(by=[0], ascending=[False])
+        # reported = set()
+        # unreported_indexes = []
+        # for i, row in mapped.iterrows():
+        #     if row[9] in reported or row[13] in reported:
+        #         continue
+        #     unreported_indexes.append(i)
+        #     reported |= set(row[[9, 13]])
+        # mapped = mapped.ix[unreported_indexes]
+        # id_pairs = mapped[[9, 13]].values.tolist()
+        # long_seq_ids = mapped[mapped[10] > mapped[14]][9].tolist()
+        # long_seq_ids += mapped[mapped[10] <= mapped[14]][13].tolist()
+        # ids_to_file = set(long_seq_ids) | (set(sequences.keys()) -
+        #                                    set(flat_list(id_pairs)))
 
         with open(pair[0], "w") as fout:
             for uid in ids_to_file:
                 fout.write(">%s\n%s\n" % (uid, sequences[uid]))
         if keepclean:
             system("rm %s %s.psl" % (pair[1], base_name))
-        return pair[0], id_pairs
+        return pair[0], mapped #id_pairs
     except EOFError:  # Empty file
         with open(pair[0], "w") as fout:
             for uid in sequences:
@@ -112,68 +134,95 @@ def blat(blatpath, cor, keepclean, beginning, pair):
         return pair[0], []
 
 
-def makeblastdbf(makeblastdb, infile):
+def makeblastdbf(infile):
     """Created blast search database for blastp."""
 
-    grbg = Popen([makeblastdb, "-in", infile, "-dbtype", "prot",
-                 "-out", "%s.bdb" % infile.split('.')[0]],
-                stdout=PIPE, stderr=STDOUT).communicate()
+    Popen(["makeblastdb", "-in", infile, "-dbtype", "prot",
+           "-out", "%s.bdb" % infile.split('.')[0]],
+          stdout=PIPE, stderr=STDOUT).communicate()
     return
 
 
-def blastpf(blastp, algo, identity, evalue, keepclean, makeblastdb, infile):
-    """Running blast and seleting best searches."""
-    makeblastdbf(makeblastdb, infile)
+def blastpf(algo, identity, evalue, keepclean, infile):
+    """Running BLAST and seleting best searches."""
+    makeblastdbf(infile)
+    # TODO: Fix things here
     infile_ = infile.split(".")[0]
+    # ncor = 1
     for query in glob("tmp/*.faa"): # TODO: Need to flip the situation
-        if algo == "blast":
-            system("%s -db %s.bdb -query %s -outfmt '6 pident qseqid qlen"
-                   " sseqid slen length' -evalue %e |"
-                   "awk '{if((2*$1*$6/(100.*($3+$5)) >= %f) && ($2 != $4))"
-                   " print $2,$4}' >> %s.bst"
-                   % (blastp, infile_, query, evalue,
-                      identity, infile_))
-        elif algo == "min":
-            system("%s -db %s.bdb -query %s -outfmt '6 pident qseqid qlen"
-                   " sseqid slen length' -evalue %e |"
-                   "awk '{if(($1*$6/(100.*($3<=$5?$3:$5)) >= %f) && ($2 != $4))"
-                   " print $2,$4}' >> %s.bst"
-                   % (blastp, infile_, query, evalue,
-                      identity, infile_))
-        # elif algo == "max":
-        #     system("%s -db %s.bdb -query %s -outfmt '6 pident qseqid qlen"
-        #            " sseqid slen length' -evalue %e |"
-        #            "awk '{if(($1*$6/(100.*($3>$5?$3:$5)) >= %f) && ($2 != $4))"
-        #            " print $2,$4}' >> %s.bst"
-        #            % (blastp, db.split('.')[0], infile, evalue,
-        #               identity, infile_))
-        else: # add information for anm
-            system("%s -db %s.bdb -query %s -outfmt '6 pident qseqid qstart"
-                   " qend qlen sseqid sstart send slen length' -evalue %e"
-                   " >> %s.bst"
-                   % (blastp, infile_, query, evalue, infile_))
-    # ">>" in above code is not error
+        system("blastp -db %s.bdb -query %s -evalue %e -outfmt 6 >> %s.bst"
+               % (infile_, query, evalue,  infile_))
+    data = pd.read_table("%s.bst" % infile_, header=None,
+                         usecols=range(10))
+    data = data[data[0] != data[1]]
+    data["qsize"] = data[0].map(lambda x: int(x.split("___")[2]))
+    data["ssize"] = data[1].map(lambda x: int(x.split("___")[2]))
 
-    try:
-        if algo == "anm":
-            data = pd.read_table("%s.bst" % infile_, header=None)
-            data = data[data[1] != data[5]]
-            data['q_r'] = data[4] - data[3]
-            data['d_r'] = data[8] - data[7]
-            data['iden'] = (data[0] * data[9] / 100.) / (
-                data[9] + data[['q_r', 'd_r']].max(axis=1) +
-                data[[2, 6]].max(axis=1))
-            data = data[data['iden'] >= identity]
-            data = data[[1, 5]]
-        else:
-            data = pd.read_table("%s.bst" % infile_, sep=" ", header=None)
-        if keepclean:
-            system("rm %s.bst" % infile_)
-        return data.values
-    except IOError:  # TODO: Find relevant error option
-        if keepclean:
-            system("rm %s.bst %s.bdb" % (infile_, infile_))
-        return []
+    if algo == "blast":
+        data = data[((data[3]*data[2] / 100.) /
+                     data[["qsize", "ssize"]].mean(axis=1)) > identity][[0, 1]]
+    elif algo == "min":
+        data = data[((data[3]*data[2] * 2 / 100.) /
+                     data[["qsize", "ssize"]].min(axis=1)) > identity][[0, 1]]
+
+    elif algo == "max":
+        data = data[((data[3]*data[2] * 2 / 100.) /
+                     data[["qsize", "ssize"]].max(axis=1)) > identity][[0, 1]]
+    else:
+        data['q_r'] = data["qsize"] - data[7]
+        data['d_r'] = data["ssize"] - data[9]
+        data = data[((data[3]*data[2] * 2 / 100.)/(
+            data[3] + data[['q_r', 'd_r']].max(axis=1) +
+            data[[6, 8]].max(axis=1))) > identity][[0, 1]]
+
+    return data.values
+
+
+def blastpf2(algo, identity, evalue, keepclean, infile):
+    """Running BLAST and seleting best searches."""
+    makeblastdbf(infile)
+    # TODO: Fix things here
+    infile_ = infile.split(".")[0]
+    # ncor = 1
+    for query in glob("tmp/*.faa"): # TODO: Need to flip the situation
+        system("blastp -db %s.bdb -query %s -evalue %e -outfmt 6 >> %s.bst"
+               % (infile_, query, evalue,  infile_))
+    data = pd.read_table("%s.bst" % infile_, header=None,
+                         usecols=range(10))
+    data = data[data[0] != data[1]]
+    data["qsize"] = data[0].map(lambda x: int(x.split("___")[2]))
+    data["ssize"] = data[1].map(lambda x: int(x.split("___")[2]))
+
+    if algo == "blast":
+        data["iden"] = ((data[3]*data[2] / 100.) /
+                             data[["qsize", "ssize"]].mean(axis=1))
+    elif algo == "min":
+        data["iden"] = ((data[3]*data[2] * 2 / 100.) /
+                        data[["qsize", "ssize"]].min(axis=1))
+
+    elif algo == "max":
+        data["iden"] = ((data[3]*data[2] * 2 / 100.) /
+                        data[["qsize", "ssize"]].max(axis=1))
+    else:
+        data['q_r'] = data["qsize"] - data[7]
+        data['d_r'] = data["ssize"] - data[9]
+        data["iden"] = ((data[3]*data[2] * 2 / 100.)/(
+            data[3] + data[['q_r', 'd_r']].max(axis=1) +
+            data[[6, 8]].max(axis=1)))
+    data[[0, 1, "iden"]].to_csv("%s.mclin" % infile_,
+                                header=False, index=False)
+
+    return
+
+
+
+
+
+
+
+
+
+
 
 
 def randompairs(n_count):
@@ -194,7 +243,7 @@ def randomfilepairs(file_list, pairs):
         yield [file_list[p] for p in pair]
 
 
-def id_arrange_df(sample_ids, sizes, ids):
+def id_arrange_df(sample_ids, ids): # sizes,
     """Arranging clustered sequences ids in dataframe."""
 
     to_return = {}
@@ -202,13 +251,14 @@ def id_arrange_df(sample_ids, sizes, ids):
     seq_count = len(ids)
     samp_count = 0
     for id_ in ids:
-        samp, seq = id_.split('___')
-        seq_size.append(sizes[id_])
+        samp, seq, sz = id_.split('___')
+        sz = int(sz)
+        seq_size.append(sz)
         if samp in to_return:
-            to_return[samp][-1] += ",%s:%d" % (id_.split('___')[1], sizes[id_])
+            to_return[samp][-1] += ",%s:%d" % (seq, sz)
         else:
             samp_count += 1
-            to_return[samp] = ["%s:%d" % (id_.split('___')[1], sizes[id_])]
+            to_return[samp] = ["%s:%d" % (seq, sz)]
     for id_ in set(sample_ids) - set(to_return.keys()):
         to_return[id_] = ['*']
     to_return["samp_count"] = [samp_count]
@@ -221,6 +271,17 @@ def id_arrange_df(sample_ids, sizes, ids):
     to_return['max'] = [np.max(seq_size)]
     return pd.DataFrame.from_dict(to_return)
 
+
+def mclf2(inflation):
+    system("cat tmp/*.mclin > tmp/temp.mclinall")
+    Popen(["mcl", "tmp/temp.mclinall", "--abc", "-I", str(inflation),
+           "-o", "tmp/temp.mcloutall"],
+          stdout=PIPE, stderr=STDOUT).communicate()
+    groups = []
+    with open("tmp/temp.mcloutall") as fin:
+        for line in fin:
+            groups.append(line[:-1].split())
+    return groups
 
 
 def mclf(prog, algo, mcl, dbcreater, mapper, inflation,
@@ -314,9 +375,9 @@ def mclf(prog, algo, mcl, dbcreater, mapper, inflation,
         data[[9, 13, 'iden']].to_csv("%s.mclin" % infile, header=False,
                                      index=False, sep="\t")
 
-    grbg = Popen([mcl, "%s.mclin" % infile, "--abc", "-I", str(inflation),
-                  "-o", "%s.mclout" % infile],
-                 stdout=PIPE, stderr=STDOUT).communicate()
+    Popen([mcl, "%s.mclin" % infile, "--abc", "-I", str(inflation),
+           "-o", "%s.mclout" % infile],
+          stdout=PIPE, stderr=STDOUT).communicate()
     groups = []
     with open("%s.mclout" % infile) as fin:
         for line in fin:
@@ -440,18 +501,27 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
     # aa_files = glob("tmp/*")
     connected_ids = nx.Graph()
     # aa_files_count = len(aa_files)
+    if distant:
+        identity = identity_distant
+    else:
+        identity = identity_close
     beginning = True
     click.echo("Running BLAT to indetify highly similar sequences .....")
+    cycle = 2
+    tmp_idtty = 1.
+    for _ in range(cycle):
+        tmp_idtty = (tmp_idtty + identity) / 2.
+
     while aa_files_count > 1:
 
         aa_files.sort()
-        file_pairs = randomfilepairs(aa_files, randompairs(aa_files_count))
-        if ncor//aa_files_count == 0:
-            cor = 1
-        else:
-            cor = ncor//aa_files_count
+        # TODO: bring halft simililarity concept back
+        # TODO: Choose similarities based on smallest sequences
 
-        func = partial(blat, pblatpath, cor, keepclean, beginning)
+        file_pairs = randomfilepairs(aa_files, randompairs(aa_files_count))
+        cor = ncor//aa_files_count + 1
+
+        func = partial(blat, pblatpath, cor, keepclean, beginning, tmp_idtty)
         file_lists_pair = [pool.apply_async(func, ([pair]))
                            for pair in file_pairs]
         beginning = False
@@ -463,72 +533,95 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         aa_files_count = len(aa_files)
     sequences = {}
     files_n_seq = {}
+    # exit(1)
     # print(seq_sizes)
     for rec in SeqIO.parse(aa_files[0], 'fasta'):
         sequences[rec.id] = rec.seq
     #
     if not distant:
         base_name = aa_files[0].split('.faa')[0]
-        identity = identity_close
         click.echo("Running BLAT to report distantly related sequences...")
         grbg = Popen([pblatpath, '-threads=%d' % ncor,
                       '-prot', '-noHead', aa_files[0], aa_files[0],
                       '%s.psl' % base_name],
                      stdout=PIPE, stderr=STDOUT).communicate()
 
+        # mapped = pd.read_table(aa_files[0].split('.faa')[0]+'.psl',
+        #                        header=None,
+        #                        usecols=[0, 1, 5, 7, 9, 10, 11, 12,
+        #                                 13, 14, 15, 16])
         mapped = pd.read_table(aa_files[0].split('.faa')[0]+'.psl',
                                header=None,
-                               usecols=[0, 1, 5, 7, 9, 10, 11, 12,
-                                        13, 14, 15, 16])
+                               usecols=[0, 9, 10, 13, 14])
+        # TODO:Fix empty file problem
+        # Clsuter and choose
         if keepclean:
             system("rm %s %s" % (aa_files[0],
                                  '%s.psl' % base_name))
         mapped = mapped[(mapped[9] != mapped[13])]
-        if algo == 'blast':
-            mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].mean(axis=1)) >=
-                            identity]
-        elif algo == 'min':
-            mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].min(axis=1)) >=
-                            identity]
+        mapped = mapped[mapped[0] >
+                        (mapped[[10, 14]].min(axis=1) *
+                         identity)][[9, 13]].values.tolist()
+        # if algo == 'blast':
+        #     mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].mean(axis=1)) >=
+        #                     identity]
+        # elif algo == 'min':
+        #     mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].min(axis=1)) >=
+        #                     identity]
         # elif algo == 'max':
         #     mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].max(axis=1)) >=
         #                     identity]
-        else:
-            mapped['q_r'] = mapped[10]-mapped[12]
-            mapped['d_r'] = mapped[14]-mapped[16]
-            mapped['iden'] = mapped[0]/(mapped[[0, 1, 5, 7]].sum(axis=1) +
-                                        mapped[[11, 15]].max(axis=1) +
-                                        mapped[['q_r', 'd_r']].max(axis=1)
-                                        )
-            mapped = mapped[mapped['iden'] >= identity]
+        # else:
+        #     mapped['q_r'] = mapped[10]-mapped[12]
+        #     mapped['d_r'] = mapped[14]-mapped[16]
+        #     mapped['iden'] = mapped[0]/(mapped[[0, 1, 5, 7]].sum(axis=1) +
+        #                                 mapped[[11, 15]].max(axis=1) +
+        #                                 mapped[['q_r', 'd_r']].max(axis=1)
+        #                                 )
+        #     mapped = mapped[mapped['iden'] >= identity]
 
-        id_pairs = mapped[[9, 13]].values
-        connected_ids.add_edges_from(id_pairs)
+        # id_pairs = mapped[[9, 13]].values
+        connected_ids.add_edges_from(mapped)
+        # connected_ids.add_edges_from(id_pairs)
         del mapped, grbg
     if distant:
         system("rm tmp/*")
-        click.echo("Running Blast to indetify distantly related sequences")
-        identity = identity_distant
+        click.echo("Running BLAST to indetify distantly related sequences")
+        seq_count = len(sequences)
+        seq_ids = list(sequences.keys())
+        sequences_perfile = seq_count//ncor + 1
         # print(identity, algo, evalue)
-        for uid in sequences:
-            if uid.split('___')[0] not in files_n_seq:
-                files_n_seq[uid.split('___')[0]] = [uid]
-            else:
-                files_n_seq[uid.split('___')[0]].append(uid)
-        for k in files_n_seq:
-            with open("tmp/%s.faa" % k, "w") as fout:
-                for sq in files_n_seq[k]:
-                    fout.write(">%s\n%s\n" % (sq, sequences[sq]))
+        for i, j in enumerate(range(0, seq_count, sequences_perfile)):
+            with open("tmp/%d.faa" % i, "w") as fout:
+                for k in seq_ids[j:j+sequences_perfile]:
+                    fout.write(">%s\n%s\n" % (k, sequences[k]))
+
+        # for uid in sequences:
+        #     file_id = uid.split('___')[0]
+        #     if file_id not in files_n_seq:
+        #         files_n_seq[file_id] = [uid]
+        #     else:
+        #         files_n_seq[file_id].append(uid)
+        # for k in files_n_seq:
+        #     with open("tmp/%s.faa" % k, "w") as fout:
+        #         for sq in files_n_seq[k]:
+        #             fout.write(">%s\n%s\n" % (sq, sequences[sq]))
         # func = partial(makeblastdbf, makeblastdb)
         # # TODO: Merge above function with blastf to delete the dbs
-        # grbg = [pool.apply_async(func, ([fl])) for fl in glob("tmp/*.faa")]
+        # pool.map(func, glob("tmp/*.faa"))
         # del grbg
-        func = partial(blastpf, blastp, algo, identity, evalue, keepclean,
-                       makeblastdb)
+        # print("Anmol")
+        # need this area to be rearranged
+        func = partial(blastpf,"min", identity, evalue, keepclean)
         # Ask for seq sizes while copying the files
-        pairs = [pool.apply_async(func, ([fl])) for fl in glob("tmp/*.faa")]
+        # use for loop with core
+        # for fl in glob("tmp/*.faa"):
+        #     connected_ids.add_edges_from(func(fl))
+        # for fl in glob("tmp/*.faa"):
+        #     connected_ids.add_edges_from(func(fl))
+        pairs = pool.map(func,  glob("tmp/*.faa"))
         for pair in pairs:
-            connected_ids.add_edges_from(pair.get())
+            connected_ids.add_edges_from(pair)
     #
     nxacc = nx.algorithms.components.connected
     connected_ids = list(nxacc.connected_components(connected_ids))
@@ -536,39 +629,78 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
     #
     # del graph
     #
-    base_names = [] # Fix this issue
+    # exit(1)
+    # base_names = [] # Fix this issue
     seq_sizes = {}
     if mcl:
-        # system("rm tmp/*")
+        try:
+            system("rm tmp/*")
+        except:
+            pass
+        # Consider that 20 core will be used
         click.echo("Running MCL over grouped sequences")
         tseq = {}
         for fl in glob("%s/*" % faaf):
             base_name = path.split(fl)[1].split('.')[0]
-            base_names.append(base_name)
             for rec in SeqIO.parse(fl, "fasta"):
-                tseq["%s___%s" % (base_name, rec.id)] = str(rec.seq)
-                seq_sizes["%s___%s" % (base_name, rec.id)] = len(rec.seq)
+                tseq["%s___%s___%d" %
+                     (base_name, rec.id, len(rec.seq))] = str(rec.seq)
+                seq_sizes["%s___%s___%d" %
+                          (base_name, rec.id, len(rec.seq))] = len(rec.seq)
 
         if distant:
             func = partial(mclf, "blast", algo, mclpath, makeblastdb, blastp,
                            ifl, identity, evalue, tseq, minseq, keepclean)
+            low_seq = []
+            high_seq = []
+            for connected_id in connected_ids:
+                if len(connected_id) <= 400:
+                    low_seq.append(connected_id)
+                else:
+                    high_seq.append(connected_id)
+            connected_ids = []
+            clusters = pool.map(func, low_seq)
+            for cluster in clusters:
+                connected_ids += cluster
+            for connected_id in high_seq:
+                try:
+                    system("rm tmp/*")
+                except:
+                    pass
+                seq_count = len(connected_id)
+                seq_ids = list(connected_id)
+                sequences_perfile = seq_count//ncor + 1
+                # print(identity, algo, evalue)
+                for i, j in enumerate(range(0, seq_count, sequences_perfile)):
+                    with open("tmp/%d.faa" % i, "w") as fout:
+                        for k in seq_ids[j:j+sequences_perfile]:
+                            fout.write(">%s\n%s\n" % (k, tseq[k]))
+                func = partial(blastpf2, algo, identity, evalue, keepclean)
+                pool.map(func,  glob("tmp/*.faa"))
+                connected_ids += mclf2(ifl)
+
+
         else:
             func = partial(mclf, "blat", algo, mclpath, None, pblatpath, ifl,
                            identity, None, tseq, minseq, keepclean)
-        clusters = [pool.apply_async(func, ([connected_id])) for connected_id
-                    in connected_ids]
-        del connected_ids, tseq
-        connected_ids = []
-        for cluster in clusters:
-            connected_ids += cluster.get()
-    else:
-        for fl in glob("%s/*" % faaf):
-            base_name = path.split(fl)[1].split(".")[0]
-            base_names.append(base_name)
-            for rec in SeqIO.parse(fl, "fasta"):
-                seq_sizes["%s___%s" % (base_name, rec.id)] = len(rec.seq)
+
+            clusters = pool.map(func, connected_ids)
+            del connected_ids, tseq
+            connected_ids = []
+            for cluster in clusters:
+                connected_ids += cluster
+    # else:
+    #     for fl in glob("%s/*" % faaf):
+    #         base_name = path.split(fl)[1].split(".")[0]
+    #         base_names.append(base_name)
+    #         for rec in SeqIO.parse(fl, "fasta"):
+    #             seq_sizes["%s___%s" % (base_name, rec.id)] = len(rec.seq)
     # print(seq_sizes, base_names)
-    func = partial(id_arrange_df, base_names, seq_sizes)
+
+    base_names = [path.split(fl)[1].split(".")[0]
+                  for fl in glob("%s/*" % faaf)]
+
+    func = partial(id_arrange_df, base_names)  # , seq_sizes
     # dataframest = [pool.apply_async(func, ([fl])) for fl in connected_ids]
     dataframes = pd.concat(pool.map(func, connected_ids), ignore_index=True)
     del connected_ids
