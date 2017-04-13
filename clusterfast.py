@@ -100,22 +100,28 @@ def blat(algo, blatpath, cor, keepclean, beginning, identity, minlen,
             mapped = mapped[mapped["minmap"] > minmap]
             del mapped["minmap"]
         if algo == "min":
-            mapped = mapped[mapped[0] >
-                            (mapped[[10, 14]].min(axis=1) *
-                             identity)][[9, 13]].values.tolist()
+            mapped["identity"] = mapped[0] / mapped[[10, 14]].min(axis=1)
         elif algo == "max":
-            mapped = mapped[mapped[0] >
-                            (mapped[[10, 14]].max(axis=1) *
-                             identity)][[9, 13]].values.tolist()
+            mapped["identity"] = mapped[0] / mapped[[10, 14]].max(axis=1)
         elif algo == "blast":
-            mapped = mapped[mapped[0] >
-                            (mapped[[10, 14]].mean(axis=1) *
-                             identity)][[9, 13]].values.tolist()
+            mapped["identity"] = mapped[0] / mapped[[10, 14]].mean(axis=1)
         else:
-            pass
+            mapped['q_r'] = mapped[10] - mapped[12]
+            mapped['d_r'] = mapped[14] - mapped[16]
+            mapped["identity"] = mapped[0]/(
+                mapped[0] + mapped[1] + mapped[['q_r', 'd_r']].max(axis=1) +
+                mapped[[10, 14]].max(axis=1) + mapped[[5, 7]].sum(axis=1))
+
+        mapped = mapped[mapped["identity"] > identity][[9, 13, "identity"]]
         if mclinfile:
+            mapped = mapped[mapped[9] != mapped[13]]
+            # TODO: find what kind of output you expect here
+            mapped.to_csv("somefilename", header=False, index=False)
+
             # TODO: Generate mclfile %s.bst"
-            pass
+            return  # TODO: Think of returning some file name here for simplicity
+
+        mapped = mapped[[9, 13]].values.tolist()
         connected_ids = nx.Graph()
         connected_ids.add_edges_from(mapped)
         nxacc = nx.algorithms.components.connected
@@ -173,15 +179,16 @@ def makeblastdbf(infile):
     return
 
 
-def blastpf(algo, identity, evalue, keepclean, mindiff, minmap, infile):
+def blastpf(algo, identity, evalue, keepclean, ncor, mindiff, minmap, infile):
     """Running BLAST and seleting best searches."""
     makeblastdbf(infile)
     # TODO: Fix things here
     infile_ = infile.split(".")[0]
     # ncor = 1
     for query in glob("tmp/*.faa"):  # TODO: Need to flip the situation
-        system("blastp -db %s.bdb -query %s -evalue %e -outfmt 6 >> %s.bst"
-               % (infile_, query, evalue,  infile_))
+        system("blastp -num_threads %d -db %s.bdb -query %s -evalue %e"
+               "-outfmt 6 >> %s.bst" % (ncor, infile_, query,
+                                        evalue,  infile_))
     mapped = pd.read_table("%s.bst" % infile_, header=None,
                            usecols=range(10))
     mapped = mapped[mapped[0] != mapped[1]]
@@ -268,13 +275,25 @@ def id_arrange_df(sample_ids, ids):  # sizes,
     return pd.DataFrame.from_dict(to_return)
 
 
-def mclf(inflation):
+def mclf(inflation, ncor):
     system("cat tmp/*.bst > tmp/temp.mclin")
     Popen(["mcl", "tmp/temp.mclin", "--abc", "-I", str(inflation),
-           "-o", "tmp/temp.mclout"],
+           "-o", "tmp/temp.mclout", "-te", str(ncor)],
           stdout=PIPE, stderr=STDOUT).communicate()
     groups = []
     with open("tmp/temp.mclout") as fin:
+        for line in fin:
+            groups.append(line[:-1].split())
+    return groups
+
+
+def mclfs(inflation, infile):
+    # Running over single file
+    Popen(["mcl", "tmp/%s" % infile, "--abc", "-I", str(inflation),
+           "-o", "tmp/%s.mclout" % infile],
+          stdout=PIPE, stderr=STDOUT).communicate()
+    groups = []
+    with open("tmp/%s.mclout" % infile) as fin:
         for line in fin:
             groups.append(line[:-1].split())
     return groups
@@ -285,6 +304,7 @@ def paired_list(lst):
         return []
     return [[lst[i], lst[i+1]] for i in range(len(lst)-1)]
 
+# TODO: Need to write a program to make mlcl independently
 
 def reanalysis(clusterframe, sequences, sample_ids, distant, ncor, ifl, evalue,
                minseq, keepclean, minlen, minmap, mindiff): # Which algo to use
