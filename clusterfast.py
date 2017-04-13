@@ -108,10 +108,10 @@ def blat(algo, blatpath, cor, keepclean, beginning, identity, minlen,
         else:
             mapped['q_r'] = mapped[10] - mapped[12]
             mapped['d_r'] = mapped[14] - mapped[16]
-            mapped["identity"] = mapped[0]/(
-                mapped[0] + mapped[1] + mapped[['q_r', 'd_r']].max(axis=1) +
-                mapped[[10, 14]].max(axis=1) + mapped[[5, 7]].sum(axis=1))
-
+            mapped["identity"] = mapped[0]/(mapped[[0, 1, 5, 7]].sum(axis=1) +
+                                            mapped[[11, 15]].max(axis=1) +
+                                            mapped[['q_r', 'd_r']].max(axis=1)
+                                            )
         mapped = mapped[mapped["identity"] > identity][[9, 13, "identity"]]
         if mclinfile:
             mapped = mapped[mapped[9] != mapped[13]]
@@ -343,9 +343,18 @@ def reanalysis(clusterframe, sequences, sample_ids, distant, ncor, ifl, evalue,
 
     dict_you_want = { your_key: old_dict[your_key] for your_key in your_keys }
 
-    pass
 
-
+def return_sequences(faaf, seqdf, col):
+    seq_dct = SeqIO.to_dict(SeqIO.parse("%s/%s.fa" % col, "fasta"))
+    toreturn = {}
+    for sqids in seqdf[col]:
+        if sqids == "*":
+            continue
+        for seqid in seqids.split(","):
+            seqinf = seqid.split(":")
+            toreturn["%s___%s___%s" %
+                     (col, seqinf[0], seqinf[1])] = seq_dct[seqinf[0]].seq
+    return toreturn
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -504,8 +513,6 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         mapped = pd.read_table(aa_files[0].split('.faa')[0]+'.psl',
                                header=None,
                                usecols=[0, 9, 10, 13, 14])
-        # TODO:Fix empty file problem
-        # Clsuter and choose
         if keepclean:
             system("rm %s %s" % (aa_files[0],
                                  '%s.psl' % base_name))
@@ -513,28 +520,27 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         mapped = mapped[mapped[0] >
                         (mapped[[10, 14]].min(axis=1) *
                          identity)][[9, 13]].values.tolist()
-        # if algo == 'blast': # TODO: move this code in blat function up
-        #     mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].mean(axis=1)) >=
-        #                     identity]
-        # elif algo == 'min':
-        #     mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].min(axis=1)) >=
-        #                     identity]
-        # elif algo == 'max':
-        #     mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].max(axis=1)) >=
-        #                     identity]
-        # else:
-        #     mapped['q_r'] = mapped[10]-mapped[12]
-        #     mapped['d_r'] = mapped[14]-mapped[16]
-        #     mapped['iden'] = mapped[0]/(mapped[[0, 1, 5, 7]].sum(axis=1) +
-        #                                 mapped[[11, 15]].max(axis=1) +
-        #                                 mapped[['q_r', 'd_r']].max(axis=1)
-        #                                 )
-        #     mapped = mapped[mapped['iden'] >= identity]
-        mapped.to_csv("sometempfile", sep=",", header=False, index=False)
+        if algo == 'blast': # TODO: move this code in blat function up
+            mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].mean(axis=1)) >=
+                            identity]
+        elif algo == 'min':
+            mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].min(axis=1)) >=
+                            identity]
+        elif algo == 'max':
+            mapped = mapped[(mapped[0] * 1. / mapped[[10, 14]].max(axis=1)) >=
+                            identity]
+        else:
+            mapped['q_r'] = mapped[10]-mapped[12]
+            mapped['d_r'] = mapped[14]-mapped[16]
+            mapped['identity'] = mapped[0]/(mapped[[0, 1, 5, 7]].sum(axis=1) +
+                                        mapped[[11, 15]].max(axis=1) +
+                                        mapped[['q_r', 'd_r']].max(axis=1)
+                                        )
+            mapped = mapped[mapped['identity'] >= identity]
 
-        # id_pairs = mapped[[9, 13]].values
-        connected_ids.add_edges_from(mapped)
-        # connected_ids.add_edges_from(id_pairs)
+        mapped[[9, 13, "indentity"]].to_csv("%s.bst" % base_name,
+                                            sep="\t", header=False,
+                                            index=False)
         del mapped
     if distant:
         system("rm tmp/*")
@@ -564,8 +570,27 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
     func = partial(id_arrange_df, base_names)
     dataframes = pd.concat(pool.map(func, connected_ids), ignore_index=True)
     del connected_ids
-    ## Fix the size related problems here
-    reanalyse = dataframes[dataframes["std"] > np.sqrt(dataframes["mean"])]
+    # Fix the size related problems here
+    groups2reanalyse = dataframes[dataframes["std"] >
+                                  np.sqrt(dataframes["mean"])]
+    col = ['cluster', 'samp_count', 'seq_count', 'min', 'median', 'mean',
+           'std', 'max']
+    groups2reanalyse = groups2reanalyse[groups2reanalyse.columns.difference(
+        col)]
+    func = partial(return_sequences, faaf, groups2reanalyse)
+    seq_dicts = map(func, groups2reanalyse.columns)
+    fileseq = {}
+    for dct in seq_dicts:
+        fileseq.update(dct)
+
+    newlist = reanalysis(groups2reanalyse, fileseq, groups2reanalyse.columns,
+                         distant, ncor, ifl, evalue, minseq, minmap, keepclean,
+                         minlen)
+    func = partial(id_arrange_df, base_names)
+    newlist = map(func, newlist)
+    dataframes = pd.concat(dataframes, newlist)
+
+
     # find the sequences here to send up
     # multicore for multiple samples
     # generate a recursive function reanalysis
@@ -575,8 +600,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                                         ascending=[False, True])
     dataframes["cluster"] = ["cluster_%d" % d for d in
                              range(1, dataframes.shape[0]+1)]
-    col = ['cluster', 'samp_count', 'seq_count', 'min', 'median', 'mean',
-           'std', 'max']
+
     # Rearanging the columns
     col += list(set(dataframes.columns)-set(col))
     min_seq = 2
