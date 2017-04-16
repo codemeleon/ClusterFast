@@ -335,6 +335,7 @@ def reanalysis(clusterframe, sequences, sample_ids, distant, ncor, ifl, evalue,
                            (infile, infile))
             # pass information here
         else:
+            func = partial(blastpf, )
             blastpf()  # pass information here
         new_list = mclf("infile")
         if len(new_list) > 1:
