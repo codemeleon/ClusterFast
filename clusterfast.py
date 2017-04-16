@@ -304,53 +304,65 @@ def paired_list(lst):
         return []
     return [[lst[i], lst[i+1]] for i in range(len(lst)-1)]
 
-# TODO: Need to write a program to make mlcl independently
+# TODO: Need to write a program to make mlclg independently
 
 def reanalysis(clusterframe, sequences, sample_ids, distant, ncor, ifl, evalue,
                minseq, keepclean, minlen, minmap, mindiff): # Which algo to use
     # must clean the tmp folder before next step
     final_list = []
-
     columns_to_ignore = ["samp_count", "seq_count", 'std', 'mean', 'median',
                          'min', 'max']
-    multicore_frames = clusterframe[clusterframe["seq_count"] > ncor]
-    singlecore_frames = clusterframe[clusterframe["seq_count"] < ncor]
-    multicore_frames = multicore_frames[multicore_frames.columns.difference(
+    # let make everything multicore
+    clusterframe = clusterframe[clusterframe.columns.difference(
         columns_to_ignore)]
-    singlecore_frames = singlecore_frames[singlecore_frames.columns.difference(
-        columns_to_ignore)]
-    # TODO: use df.values.tolist()
+    # clusterframe = clusterframe.values.tolist()
+    cols = clusterframe.columns
 
-    def multicore(distant):
-        # Ask to generate files
-        pass
-
-    def singlecore():
-        pass
-    # TODO: Compare the initial and final list.
-    # One by one in case of multicore system
-    # Parallel in case of single core
-
-    # Get cluster from MCL
-    #  Compare with original
-    # Recheck uniq once
-    # Check grouping
-    # Rerun reanalysis
-    ## Control of size group must be reanalysed
-    # Select the group which has number of sequences more the the core
-    # apply multicore for them
-    # rest use single core
-
-    dict_you_want = { your_key: old_dict[your_key] for your_key in your_keys }
+    for group_lst in clusterframe.iterrows():
+        infile = "tmp/frame_seq.fa"
+        with open(infile, "w") as fout:
+            for col in cols:
+                if seq_lst[col] == "*":
+                    continue
+                sq_lst = seq_lst[col].split(",")
+                for sq_ls in sq_lst:
+                    sq = sq_ls.split(":")
+                    seqid = "%s___%s___%s\n%s\n" % (col, sq[0], sq[1])
+                    fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
+        if not distant:
+            func = partial(blat, algo, pblatpath, cor, keepclean,
+                           beginning, tmp_idtty, minlen, mindiff, minmap,
+                           (infile, infile))
+            # pass information here
+        else:
+            blastpf()  # pass information here
+        new_list = mclf("infile")
+        if len(new_list) > 1:
+            func = partial(id_arrange_df, cols)
+            dataframes = pd.concat(pool.map(func, connected_ids),
+                                   ignore_index=True)
+            groups2reanalyse = dataframes[dataframes["std"] >
+                                          np.sqrt(dataframes["mean"])]
+            if len(groups2reanalyse):
+                newlist = reanalysis(groups2reanalyse, fileseq, groups2reanalyse.columns,
+                                     distant, ncor, ifl, evalue, minseq, minmap, keepclean,
+                                     minlen)
+                final_list += new_list
+            else:
+                final_list += new_list
+        else:
+            final_list += new_list
+    return final_list
 
 
 def return_sequences(faaf, seqdf, col):
+    """Return sequences for each column."""
     seq_dct = SeqIO.to_dict(SeqIO.parse("%s/%s.fa" % col, "fasta"))
     toreturn = {}
     for sqids in seqdf[col]:
         if sqids == "*":
             continue
-        for seqid in seqids.split(","):
+        for seqid in sqids.split(","):
             seqinf = seqid.split(":")
             toreturn["%s___%s___%s" %
                      (col, seqinf[0], seqinf[1])] = seq_dct[seqinf[0]].seq
@@ -570,22 +582,27 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
     func = partial(id_arrange_df, base_names)
     dataframes = pd.concat(pool.map(func, connected_ids), ignore_index=True)
     del connected_ids
-    # Fix the size related problems here
+    # Identifying weird groups
     groups2reanalyse = dataframes[dataframes["std"] >
                                   np.sqrt(dataframes["mean"])]
-    col = ['cluster', 'samp_count', 'seq_count', 'min', 'median', 'mean',
-           'std', 'max']
-    groups2reanalyse = groups2reanalyse[groups2reanalyse.columns.difference(
-        col)]
-    func = partial(return_sequences, faaf, groups2reanalyse)
-    seq_dicts = map(func, groups2reanalyse.columns)
-    fileseq = {}
-    for dct in seq_dicts:
-        fileseq.update(dct)
+    if len(groups2reanalyse):
+        col = ['cluster', 'samp_count', 'seq_count', 'min', 'median', 'mean',
+               'std', 'max']
 
-    newlist = reanalysis(groups2reanalyse, fileseq, groups2reanalyse.columns,
-                         distant, ncor, ifl, evalue, minseq, minmap, keepclean,
-                         minlen)
+        # Etracting sequences for weird groups
+        seq_files_col = groups2reanalyse.columns.difference(col)
+        func = partial(return_sequences, faaf,
+                       groups2reanalyse[groups2reanalyse.columns.difference(
+                           col)])
+        seq_dicts = map(func, seq_files_col)
+        fileseq = {}
+        for dct in seq_dicts:
+            fileseq.update(dct)
+        del seq_dicts
+        newlist = reanalysis(groups2reanalyse, fileseq, groups2reanalyse.columns,
+                             distant, ncor, ifl, evalue, minseq, minmap, keepclean,
+                             minlen)
+    # Delete old list and add new ones ehere
     func = partial(id_arrange_df, base_names)
     newlist = map(func, newlist)
     dataframes = pd.concat(dataframes, newlist)
