@@ -309,30 +309,31 @@ def reanalysis(clusterframe, sequences, sample_ids, distant, ncor, ifl, evalue,
                minseq, minmap, keepclean, minlen, mindiff, algo, identity):
     """Fragments larger cluster in smaller."""
     final_list = []
-
+    cls_lsts = []
     for group_lst in clusterframe:
-        infile = "tmp/frame_seq.fa"
-        with open(infile, "w") as fout:
-            for i, grp_gp in enumerate(group_lst):
-                if grp_gp == "*":
-                    continue
-                sq_lst = grp_gp.split(",")
-                for sq_ls in sq_lst:
-                    sq = sq_ls.split(":")
-                    seqid = "%s___%s___%s" % (sample_ids[i], sq[0], sq[1])
-                    # print(seqid)
-                    fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
-        # break
         if not distant:
+            infile = "tmp/frame_seq.fa"
+            with open(infile, "w") as fout:
+                for i, grp_gp in enumerate(group_lst):
+                    if grp_gp == "*":
+                        continue
+                    sq_lst = grp_gp.split(",")
+                    for sq_ls in sq_lst:
+                        sq = sq_ls.split(":")
+                        seqid = "%s___%s___%s" % (sample_ids[i], sq[0], sq[1])
+                        # print(seqid)
+                        fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
+
             blat(algo, "pblat", ncor, keepclean, False, identity, minlen,
                  mindiff, minmap, True, (infile, infile))
+            cls_lsts = mclf(ifl, ncor, "tmp/mcl.mclin")
         else:
-            ## *****
-            # system("rm tmp/*")
+            ## ***** # Count sequences, split and combine
+            system("rm tmp/*")
             ## *****
             blastpf(algo, identity, evalue, keepclean, ncor, mindiff, minmap,
                     True, infile)
-        cls_lsts = mclf(ifl, ncor, "tmp/mcl.mclin")
+
         if len(cls_lsts) == 1:
             final_list += cls_lsts
         else:
@@ -601,7 +602,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                              minlen, mindiff, algo, identity)
         func = partial(id_arrange_df, base_names)
         newlist = pd.concat(pool.map(func, newlist), ignore_index=True)
-        dataframe = pd.concat(dataframe, newlist)
+        dataframes = pd.concat(dataframes, newlist)
         del newlist
     dataframes = dataframes.sort_values(by=["samp_count", "seq_count"],
                                         ascending=[False, True])
