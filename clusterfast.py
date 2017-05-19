@@ -430,19 +430,18 @@ def blast_small(evalue, minmap, keepclean,
 
 
 def reanalysis_blat(minmap, keepclean, mindiff,
-                    algo, identity, ncor, infile):
+                    algo, identity, ncor, adaptive, conn_thresh, infile):
     """Fragments larger cluster in smaller."""
     df = blat(algo, "pblat", ncor, keepclean, False, identity, None,
-         mindiff, minmap, "orth", (infile, infile))
-    splt = "orth"
-    adaptive = 0.95
-    conn_thresh = 0.1
-    if splt == "orth":
+              mindiff, minmap, "orth", (infile, infile))
+    if len(df):
         df = blast_table_analysis(df, adaptive)
-        connected_ids = nx.Graph() # Remove
+        connected_ids = nx.Graph()
         connected_ids.add_edges_from(df)
         connected_ids = group_seprator(connected_ids, conn_thresh)
         return connected_ids
+    else:
+        return []
 
 def return_sequences(faaf, seqdf, col):
     """Return sequences for each column."""
@@ -514,8 +513,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         evalue, distant, algo, blastp, makeblastdb, keepclean,
         seed, minlen, mindiff, minmap, adaptive, conn_thresh):
-    """ClusterFast, to generate quick cluster based on given samples sequences.
-    """
+    """ClusterFast, to generate quick cluster based on given samples sequences."""
     """The program uses ProteinOrth4 algorithm to genrate protein sequence
     cluster from sequences distributed in different sample files base on their
     sequence similarities reported by BLAT tool. Depending on different
@@ -561,13 +559,9 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         identity = identity_close
     beginning = True
     click.echo("Running BLAT to indetify highly similar sequences .....")
-    cycle = 2
-    tmp_idtty = 1.
-    for _ in range(cycle):
-        tmp_idtty = (tmp_idtty + identity) / 2.
+    tmp_idtty = (tmp_idtty + identity) / 2.
     while aa_files_count > 1:
         aa_files.sort()
-        # TODO: bring halft simililarity concept back
         cor = ncor//aa_files_count + 1
         func = partial(blat, algo, pblatpath, cor, keepclean, beginning,
                        tmp_idtty, minlen, mindiff, minmap, "X")
@@ -666,7 +660,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                                                       sq[1])
                             fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
             func = partial(reanalysis_blat, minmap, keepclean,
-                           mindiff, algo, identity, 1)
+                           mindiff, algo, identity, 1, adaptive, conn_thresh)
             for lst in pool.map(func,  glob("tmp/*.faa"), chunksize=1):
                 print(len(lst))
                 new_groups += lst
@@ -702,6 +696,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
             func = partial(blast_small, evalue,
                            minmap, keepclean, mindiff, algo,
                            identity, adaptive, conn_thresh)
+
             #  For smaller group, send it directly to blast and get the result
             for lst in pool.map(func,  glob("tmp/*.faa"), chunksize=1):
                 new_groups += lst
@@ -727,9 +722,9 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                             fout.write(">%s\n%s\n" % (k, sequences[k]))
 
                 # Simply write a function which could do it for you.
-                new_groups += big_blast(evalue,
-                               minmap, keepclean, mindiff, algo,
-                               identity, ncor, adaptive, conn_thresh)# Needs some parameters
+                new_groups += big_blast(evalue, minmap, keepclean, mindiff,
+                                        algo, identity, ncor, adaptive,
+                                        conn_thresh)
 
 
 
@@ -740,8 +735,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                                ignore_index=True)
         dataframes = pd.concat([dataframes, new_groups])
         del new_groups
-    # print(len(dataframes))
-    time.sleep(5)
+
     min_seq = 2
     min_samp = 2
     if min_seq:
