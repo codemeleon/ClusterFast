@@ -129,21 +129,10 @@ def blat(algo, blatpath, cor, keepclean, beginning, identity, minlen,
         mapped = blast_dataframe(mapped, mindiff, minmap, algo)
         mapped = mapped[mapped["identity"] >= identity]
 
-
-        # Need to change here
-        # if mclinfile == "tog":
-        #     mapped = mapped[mapped["db"] != mapped["qr"]]
-        #     # TODO: find what kind of output you expect here
-        #     mapped[["db", "qr", "identity"]
-        #            ].to_csv("tmp/%s.mclin" %
-        #                     path.split(pair[0])[1].split(".faa")[0],
-        #                     header=False, index=False, sep="\t")
-        #     return
         if mclinfile == "orth":
             mapped = mapped[mapped["db"] != mapped["qr"]]
             return mapped
-        # Another option for separation of paralogs
-        # f returning some file name here for simplicity
+
 
         mapped = mapped[["db", "qr"]].values.tolist()
         connected_ids = nx.Graph()
@@ -308,31 +297,6 @@ def makeblastdbf(infile):
     return
 
 
-# def norm_value(df):
-#     def curve(x, a, b):
-#         return a*x + b
-#     df["multi"] = df["qsize"]*df["ssize"]
-#     # print(df.columns)
-#     for_curve = df[["multi", "bits"]]
-#     for_curve = for_curve.sort_values(["multi", "bits"], ascending=[False, False])
-#     for_curve = for_curve.drop_duplicates(["multi"])
-#     for_curve["multi"] = np.log10(for_curve["multi"])
-#     for_curve["bits"] = np.log10(for_curve["bits"])
-#     min_multi, max_multi = min(for_curve["multi"]), max(for_curve["multi"])
-#     min_max = max(for_curve.loc[for_curve["multi"]==min_multi, "bits"])
-#     max_max = max(for_curve.loc[for_curve["multi"]==max_multi, "bits"])
-#     x = [min_multi, max_multi]
-#     y = [min_max, max_max]
-#     pars = [0, 0]
-#     if max_multi - min_multi == 0:
-#         pars[0] = 1e100
-#     else:
-#         pars[0] = (max_max - min_max) / max_multi - min_multi
-#
-#     pars[1] = max_max - pars[0] * max_multi
-#     df["identity"] = df["bits"] / ((df["multi"]**pars[0])* (10**pars[1]))
-#     df.loc[df["identity"] > 1.0, "identity"] = 1.0
-#     return df
 
 def blastpf(algo, identity, evalue, keepclean, mindiff, minmap,
             mclinfile, db_query):
@@ -427,38 +391,6 @@ def id_arrange_df(sample_ids, ids):
     to_return['max'] = [np.max(seq_size)]
     return pd.DataFrame.from_dict(to_return)
 
-
-
-#
-#
-# def mclf(inflation, ncor, infile, distant):
-#     if infile:
-#         Popen(["mcl", infile, "--abc", "-I", str(inflation),
-#                "-o", "tmp/temp.mclout", "-te", str(ncor)],
-#               stdout=PIPE, stderr=STDOUT).communicate()
-#     else:
-#         system("cat tmp/*.bst > tmp/temp.mclin")
-#         if distant:
-#             mclin = pd.read_table("tmp/temp.mclin", header=None)
-#             # print(mclin)
-#             mclin = mclin.rename(columns={0:"db", 1:"qr", 2:"qsize",
-#                                           3:"ssize", 4:"eval", 5:"bits"})
-#             mclin = norm_value(mclin)
-#             mclin[["db", "qr", "identity"]
-#                   ].to_csv("tmp/temp.mclin",
-#                            header=False,
-#                            index=False,
-#                            sep="\t")
-#
-#         Popen(["mcl", "tmp/temp.mclin", "--abc", "-I", str(inflation),
-#                "-o", "tmp/temp.mclout", "-te", str(ncor)],
-#               stdout=PIPE, stderr=STDOUT).communicate()
-#     groups = []
-#     with open("tmp/temp.mclout") as fin:
-#         for line in fin:
-#             groups.append(line[:-1].split())
-#     # system("rm tmp/*.bst tmp/temp.mclin tmp/temp.mclout") # Need to change this but later
-#     return groups
 
 
 def paired_list(lst):
