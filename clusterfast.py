@@ -395,40 +395,38 @@ def paired_list(lst):
 
 
 def blast_big(evalue, minmap, keepclean,
-              mindiff, algo, identity, infile):
+              mindiff, algo, identity, ncor, adaptive, conn_thresh):
     files = glob("tmp/*.faa")
     func = partial(makeblastdbf)
+    pool = Pool(ncor)
     pool.map(func, files)
     func = partial(blastpf, algo, identity, evalue, keepclean, mindiff,
                    minmap, "orth")
     df = pool.map(func, its.product(files, repeat=2), chunksize=1)
     df = pd.concat(df)
-    splt = "orth"
     if len(df):
-        if splt == "orth":
-            adaptive = 0.95
-            conn_thresh = 0.1
-            df = blast_table_analysis(df, adaptive)
-            connected_ids = nx.Graph()
-            connected_ids.add_edges_from(df)
-            connected_ids = group_seprator(connected_ids, conn_thresh)
-            return connected_ids
+        df = blast_table_analysis(df, adaptive)
+        connected_ids = nx.Graph()
+        connected_ids.add_edges_from(df)
+        connected_ids = group_seprator(connected_ids, conn_thresh)
+        return connected_ids
+    else:
+        return []
 
 def blast_small(evalue, minmap, keepclean,
-                mindiff, algo, identity, infile):
+                mindiff, algo, identity, adaptive, conn_thresh, infile):
     makeblastdbf(infile)
     df = blastpf(algo, identity, evalue, keepclean, mindiff, minmap,
                  "orth", (infile, infile))
     splt = "orth"
     if len(df):
-        if splt == "orth":
-            adaptive = 0.95
-            conn_thresh = 0.1
-            df = blast_table_analysis(df, adaptive)
-            connected_ids = nx.Graph()
-            connected_ids.add_edges_from(df)
-            connected_ids = group_seprator(connected_ids, conn_thresh)
-            return connected_ids
+        df = blast_table_analysis(df, adaptive)
+        connected_ids = nx.Graph()
+        connected_ids.add_edges_from(df)
+        connected_ids = group_seprator(connected_ids, conn_thresh)
+        return connected_ids
+    else:
+        return []
 
 
 def reanalysis_blat(minmap, keepclean, mindiff,
@@ -509,11 +507,16 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option("--minmap", help="Minimum mapping relative to longest sequences",
               type=float, default=0.5,
               show_default=True)  # None to be ignored
+@click.option("--conn_thresh", help="Connection Threshold", type=float,
+              default=0.1, show_default=True)
+@click.option("--adaptive", help="Adaptive search value", type=float,
+              default=0.95, show_default=True)
 def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
         evalue, distant, algo, blastp, makeblastdb, keepclean,
-        seed, minlen, mindiff, minmap):
-    """ClusterFast."""
-    """The program uses ProteinOrth4 algorithme to genrate protein sequence
+        seed, minlen, mindiff, minmap, adaptive, conn_thresh):
+    """ClusterFast, to generate quick cluster based on given samples sequences.
+    """
+    """The program uses ProteinOrth4 algorithm to genrate protein sequence
     cluster from sequences distributed in different sample files base on their
     sequence similarities reported by BLAT tool. Depending on different
     parameters different results will be provided.
@@ -698,7 +701,7 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                             fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
             func = partial(blast_small, evalue,
                            minmap, keepclean, mindiff, algo,
-                           identity)
+                           identity, adaptive, conn_thresh)
             #  For smaller group, send it directly to blast and get the result
             for lst in pool.map(func,  glob("tmp/*.faa"), chunksize=1):
                 new_groups += lst
@@ -724,7 +727,9 @@ def run(faaf, identity_close, identity_distant, ncor, outfile, pblatpath,
                             fout.write(">%s\n%s\n" % (k, sequences[k]))
 
                 # Simply write a function which could do it for you.
-                new_groups += big_blast()# Needs some parameters
+                new_groups += big_blast(evalue,
+                               minmap, keepclean, mindiff, algo,
+                               identity, ncor, adaptive, conn_thresh)# Needs some parameters
 
 
 
