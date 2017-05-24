@@ -18,7 +18,7 @@ _Expected to be in system path or provided in the options_
 
 There are a number of dependencies required for ClusterFast, with instructions specific to the type of system you have:
 
-- Python 3+ (Python2+ hasn't been tested)
+- Python 3+ (Python2+ not tested)
 - NumPy
 - SciPy
 - Pandas
@@ -26,11 +26,13 @@ There are a number of dependencies required for ClusterFast, with instructions s
 - BioPython
 - NetworkX
 
+_Modules should be installed using ClusterFast installation._
+
 # Installation
 _Note: user might need to be the root_
 
 ## Suggested method
-> pip install git+https://github.com/codemeleon/ClusterFast.git
+>pip install git+https://github.com/codemeleon/ClusterFast.git
 
 ## Alternative method
 1. git clone https://github.com/codemeleon/ClusterFast.git
@@ -42,7 +44,7 @@ If the installation fails, please contact your system administrator. If you disc
 
 # Input Files
 
-The input format for ClusterFast is protein sequence files (extension .faa) of translated amino acid sequences of predicted open reading frames for each genome (sample) in the input dataset. The file and/or sequence names must not conatain  **___**. These files can be created using [Prokka](https://github.com/tseemann/prokka).
+The input format for ClusterFast is protein sequence files (extension .faa) of translated amino acid sequences of predicted open reading frames for each genome (sample) in the input dataset. The file and/or sequence names must not conatain  **___(three underscores)**. These files can be created using [Prokka](https://github.com/tseemann/prokka).
 
 # Usage
 
@@ -60,6 +62,9 @@ clusterfast -faaf < protein_seq_folder > -identity < sequence_similarity > -ncor
 - -evalue: BLAST evalue. Default: 1e-10
 - -distant: Are samples distaly related. Default: False
 - -seed: For random file pairing. Default: 1234
+- -minlen: Minimun length of sequences used in clustering. Default: 50
+- -mindiff: Length of smaller sequences relative longer, to consider a blast hit. Default: 0.5
+- minmap: Minimum mapping length relative to longer sequence in pair. Default: 0.5
 - conn_threshold: Connection Threshold used in ProteinOrtho4.0. Default: 0.1
 - -adaptive: Adapative search value as in ProteinOrtho4. Default: 0.95
 - -algo: four different Identity calculation method. Use in final interation and mcl. Default: anm
@@ -71,7 +76,7 @@ clusterfast -faaf < protein_seq_folder > -identity < sequence_similarity > -ncor
     - `ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ`
     - `---*****--******---***-**--******-----`
     - `---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----`
-  - Scoring for sequence search by BLAST was done using algorith explain in OrthoFinder Tool
+
 
 # License
 
