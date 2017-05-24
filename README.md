@@ -6,11 +6,13 @@ ClusterFast works by first grouping the most similar protein sequences encoded b
 
 Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core.
 
-ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and MCL programs.
+ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and ProteinOrtho4.0 algorithm.
 
 # External tools
 
-_Expected to be in system path_ - PBLAT: <http://icebert.github.io/pblat/> - NCBI BLAST suit - mcl: <http://www.micans.org/mcl/>
+_Expected to be in system path or provided in the options_
+- PBLAT: <http://icebert.github.io/pblat/>
+- NCBI BLAST suit
 
 # Python and module dependencies
 
@@ -25,40 +27,45 @@ There are a number of dependencies required for ClusterFast, with instructions s
 - NetworkX
 
 # Installation
+_Note: user might need to be the root_
 
-python setup.py install
+## Suggested method
+> pip install git+https://github.com/codemeleon/ClusterFast.git
+
+## Alternative method
+1. git clone https://github.com/codemeleon/ClusterFast.git
+2. cd ClusterFast
+3. python setup.py install
+
 
 If the installation fails, please contact your system administrator. If you discover any bugs, please let us know by emailing anmol@liv.ac.uk
 
 # Input Files
 
-The input format for ClusterFast is protein sequence files (.faa) of translated amino acid sequences of predicted open reading frames for each genome (sample) in the input dataset. These files can be created using [Prokka](https://github.com/tseemann/prokka).
+The input format for ClusterFast is protein sequence files (extension .faa) of translated amino acid sequences of predicted open reading frames for each genome (sample) in the input dataset. The file and/or sequence names must not conatain  **___**. These files can be created using [Prokka](https://github.com/tseemann/prokka).
 
 # Usage
 
-clusterfast --faaf < protein_seq_folder > --identity < sequence_similarity > --ncor < #_of_cores_to_use > --outfile < outputfile > --blatpath < blat_absolute_path > --identity_close <similarity_for_closely_related_sample> --identity_distant <similarity_for_distant_related_sample> --blastppath <blast_absolute_path> --makeblastdb <makeblastdb_path> --mclpath <mcl_absolute_path>  --sim_algo <blat|anmol|short> --ifl <inflation_rate_for_mcl> --makeblastdb <makeblastdb_path> --identity_distant <similarity_for_distant_related_sample> --identity_close <similarity_for_closely_related_sample> --keepclean <True|False> --minlen <minmum_sequence_size> --mindiff <Sequence_difference_in_pair_sequence> --minmap <Minimum_map_length_relative_to_longer_sequence_in_pair>
+clusterfast -faaf < protein_seq_folder > -identity < sequence_similarity > -ncor < #_of_cores_to_use > -outfile < outputfile > -pblat < pblat_absolute_path > -blastp < blast_absolute_path > -makeblastdb < makeblastdb_path > -sim_algo < blat|anm > -minlen < minmum_sequence_size_for_clustering > -mindiff < Sequence_difference_in_pair_sequenc > -minmap < Minimum_map_length_relative_to_longer_sequence_in_pair > -seed < random_number_for_file_pairing >
+
 
 - --help/-h : Help
-- --faaf: Folder contain only protein fasta files
-- --identity_close : Similarity between sequences for closly related samples. Default 0.8
-- --identity_distant : Similarity between sequences for distently related samples. Default 0.25
-- --ncor: Number of processor to use
-- --outfile: Output file path
-- --pblatpath: Path for pblat executable. Default: it will consider it in system path
-- --pblatpath: Path for pblat executable. Default: it will consider it in system path (pblat)
-- --makeblastdb: Path for makeblastdb executable. Default: it will consider it in system path (makeblastdb)
-- --blastp: Path for blastp executable. Default: it will consider it in system path (blastp)
-- --mclpath: Path for mcl executable. Default: it will consider it in system path (mcl)
-- --distant: Are samples distaly related. Default: False
-- --mcl: Run MCL. If not used, result will be provided based on connected sequence list. Default: False
-- --ifl: Inflation rate for mcl. Default: 4.0
-- --minseq: Sequences in connected group required for running MCL. Default: 1
-- --keepclean: Keep deleting interemediate files to minimise disk usage
-- --algo: four different Identity calculation method. Use in final interation and mcl. Default: blast
+- -faaf: Folder contain only protein fasta files
+- -identity: Similarity between sequences. Defaults: 0.8 for closly related samples and 0.25 for closly related samples
+- -ncor: Number of processor to use
+- -outfile: Output file path
+- -pblat: Path for pblat executable. Default: it will consider it in system path(pblat)
+- -makeblastdb: Path for makeblastdb executable. Default: it will consider it in system path (makeblastdb)
+- -blastp: Path for blastp executable. Default: it will consider it in system path (blastp)
+- -evalue: BLAST evalue. Default: 1e-10
+- -distant: Are samples distaly related. Default: False
+- -seed: For random file pairing. Default: 1234
+- conn_threshold: Connection Threshold used in ProteinOrtho4.0. Default: 0.1
+- -adaptive: Adapative search value as in ProteinOrtho4. Default: 0.95
+- -algo: four different Identity calculation method. Use in final interation and mcl. Default: anm
 
   - **blast**: 2*matches/(sum of length of sequences)
-  - **min**: matches/length of shortest sequence in the pair
-  - **anmol**: matches/tolal alignment length as following.
+  - **anm**: matches/tolal alignment length as following.
 
     - "*" represents matches in the alignment. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
     - `ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ`
