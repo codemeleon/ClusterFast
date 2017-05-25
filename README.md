@@ -82,6 +82,15 @@ clusterfast -faaf < protein_seq_folder > -identity < sequence_similarity > -ncor
 
 GPLv3
 
+# Benchmarking
+
+_Figures are coming soon_
+
 # Requests
 
 Suggestions for improvements are welcome.
+
+# ToDo
+
+- Py27 compatible
+- More optimisations
