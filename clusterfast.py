@@ -738,6 +738,7 @@ def run(faaf, identity, ncor, outfile, pblat,
                 seq_count = len(temp_seq)
                 sequences_perfile = seq_count//ncor + 1
                 system("rm %s/*" % tmpd)
+                seq_ids = list(temp_seq)
                 for i, j in enumerate(range(0, seq_count, sequences_perfile)):
                     with open("%s/%d.faa" % (tmpd, i), "w") as fout:
                         for k in seq_ids[j:j+sequences_perfile]:
