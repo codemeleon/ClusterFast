@@ -104,7 +104,7 @@ def blatf(algo, pblat, cor, beginning, identity, minlen,
             pair[i] = "%s/%s" % (tmpd, flname)
             with open(pair[i], "w") as fout:
                 for rec in SeqIO.parse(fl, 'fasta'):
-                    if len(rec.seq) < minlen:
+                    if len(rec.seq) < minlen or len(rec.seq) > 20000:
                         continue
                     fout.write(">%s___%s___%d\n%s\n" % (base_name, rec.id,
                                                         len(rec.seq), rec.seq))
@@ -116,12 +116,17 @@ def blatf(algo, pblat, cor, beginning, identity, minlen,
         for rec in SeqIO.parse(p, 'fasta'):
             sequences[rec.id] = rec.seq
     base_name = pair[0].split('.')[0]
+    if mclinfile != "orth":
+        outfile = '%s.bst' % base_name
+    else:
+        f1 = path.split(pair[1])[1].split(".faa")[0]
+        outfile = '%s_%s.bst' % (base_name, f1)
     Popen([pblat, '-threads=%d' % cor, "-out=blast8",
            '-prot', '-noHead', pair[0], pair[1],
-           '%s.bst' % base_name],
+           outfile],
           stdout=PIPE, stderr=STDOUT).communicate()
-    if stat('%s.bst' % base_name).st_size:
-        mapped = pd.read_table("%s.bst" % base_name, header=None)
+    if stat(outfile).st_size:
+        mapped = pd.read_table(outfile, header=None)
         mapped = blast_dataframe(mapped, mindiff, minmap, algo)
         mapped = mapped[mapped["identity"] >= identity]
 
@@ -159,8 +164,6 @@ def blatf(algo, pblat, cor, beginning, identity, minlen,
         with open(pair[0], "w") as fout:
             for uid in sequences:
                 fout.write(">%s\n%s\n" % (uid, sequences[uid]))
-        if keepclean:
-            system("rm %s %s.bst" % (pair[1], base_name))
         return pair[0], []
 
 
@@ -295,7 +298,7 @@ def makeblastdbf(makeblastdb, infile):
     return
 
 
-def blastpf(blastp, algo, identity, evalue, keepclean, mindiff, minmap,
+def blastpf(blastp, algo, identity, evalue, mindiff, minmap,
             mclinfile, db_query):
     """Running BLAST and seleting best searches."""
     db, infile = db_query
@@ -420,10 +423,12 @@ def blast_small(blastp, makeblastdb, evalue, minmap,
 
 
 def reanalysis_blat(pblat, minmap, mindiff,
-                    algo, identity, ncor, adaptive, conn_thresh, infile):
+                    algo, identity, ncor, adaptive, conn_thresh, tmpd, infile):
     """Fragment large cluster in smaller."""
+    # def blatf(algo, pblat, cor, beginning, identity, minlen,
+    #          mindiff, minmap, mclinfile, tmpd, pair):
     df = blatf(algo, pblat, ncor, False, identity, None,
-               mindiff, minmap, "orth", (infile, infile))
+               mindiff, minmap, "orth", tmpd, (infile, infile))
     if len(df):
         df = blast_table_analysis(df, adaptive)
         connected_ids = nx.Graph()
@@ -489,9 +494,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               " It will be used in blast search",
               type=click.Choice(['blast', 'anm']),
               default='anm', show_default=True)
-# @click.option("-keepclean", help="Keep deleting intermediate files"
-#               "to suppress disk usage", type=bool, default=True,
-#               show_default=True)
 @click.option("-seed", help="Random seed for pairing of files",
               type=int, default=1234, show_default=True)
 @click.option("-minlen", help="Minimum Sequence Length",
@@ -517,8 +519,12 @@ def run(faaf, identity, ncor, outfile, pblat,
     Each for contain sequence id in format of orgarmism/sample_sequenceid
     Not Trying to find sequence from different organisms which might have
     same fuction Trying to bring similar sequences together only"""
-    system("rm clusters.clstr")
     np.random.seed(seed)
+    # Checking ........
+    if path.isfile(outfile):
+        click.echo("Given output file already exists. Exiting ....")
+        exit(0)
+
     if not path.isdir(faaf):
         click.echo("Folder path \"%s\" doesn't exist." % faaf)
         exit(0)
@@ -542,17 +548,19 @@ def run(faaf, identity, ncor, outfile, pblat,
                    Therefore %d is being used in the analysis" % cpu_count())
         ncor = cpu_count()
 
-    # makedirs("tmp")
+    # Check done ...
     tmpd = tempfile.mkdtemp()
-    click.echo("Please have patience. It might take a while to finish ...")
+
     pool = Pool(ncor)
     aa_files = glob("%s/*.faa" % faaf)
     aa_files_count = len(aa_files)
     click.echo("%d files found in input folder" % aa_files_count)
     connected_ids = nx.Graph()
     beginning = True
+    click.echo("Please have patience. It might take a while to finish ...")
     click.echo("Running BLAT to indetify highly similar sequences .....")
     tmp_idtty = (1. + identity) / 2.
+    # Looking for highly similar sequences .....
     while aa_files_count > 1:
         aa_files.sort()
         cor = ncor//aa_files_count + 1
@@ -570,21 +578,39 @@ def run(faaf, identity, ncor, outfile, pblat,
     sequences = {}
     for rec in SeqIO.parse(aa_files[0], 'fasta'):
         sequences[rec.id] = rec.seq
-    # ide
+
+    # Looking for remotely related sequences ....
     if not distant:
-        base_name = aa_files[0].split('.faa')[0]
-        click.echo("Running BLAT to report distantly related sequences...")
-        Popen([pblat, '-threads=%d' % ncor, "-out=blast8",
-               '-prot', '-noHead', aa_files[0], aa_files[0],
-               '%s.bst' % base_name],
-              stdout=PIPE, stderr=STDOUT).communicate()
-        if stat('%s.bst' % base_name).st_size:
-            mapped = pd.read_table("%s.bst" % base_name, header=None)
-            mapped = blast_dataframe(mapped, mindiff, minmap, algo)
-            mapped = mapped[mapped["identity"] >= 0.9 * identity]
-            mapped = mapped[mapped["db"] != mapped["qr"]]
-            connected_ids.add_edges_from(mapped[["db", "qr"]].values.tolist())
-            del mapped
+        system("rm %s/*" % tmpd)
+        click.echo("Running BLAST to indetify distantly related sequences")
+        seq_count = len(sequences)
+        seq_ids = list(sequences.keys())
+        sequences_perfile = seq_count//ncor + 1
+        for i, j in enumerate(range(0, seq_count, sequences_perfile)):
+            with open("%s/%d.faa" % (tmpd, i), "w") as fout:
+                for k in seq_ids[j:j+sequences_perfile]:
+                    fout.write(">%s\n%s\n" % (k, sequences[k]))
+        files = glob("%s/*.faa" % tmpd)
+        func = partial(blatf, algo, pblat, 1, False, identity, None,
+                   mindiff, minmap, "orth", tmpd)  # , (infile, infile)
+        pairs = pool.map(func, its.product(files, repeat=2), chunksize=1)
+        for pair in pairs:
+            connected_ids.add_edges_from(pair[["db", "qr"]].values.tolist())
+        ### Ignore below for test purpose
+        # base_name = aa_files[0].split('.faa')[0]
+        # click.echo("Running BLAT to report distantly related sequences...")
+        # # TODO: Check for split and run.
+        # Popen([pblat, '-threads=%d' % ncor, "-out=blast8",
+        #        '-prot', '-noHead', aa_files[0], aa_files[0],
+        #        '%s.bst' % base_name],
+        #       stdout=PIPE, stderr=STDOUT).communicate()
+        # if stat('%s.bst' % base_name).st_size:
+        #     mapped = pd.read_table("%s.bst" % base_name, header=None)
+        #     mapped = blast_dataframe(mapped, mindiff, minmap, algo)
+        #     mapped = mapped[mapped["identity"] >= 0.9 * identity]
+        #     mapped = mapped[mapped["db"] != mapped["qr"]]
+        #     connected_ids.add_edges_from(mapped[["db", "qr"]].values.tolist())
+        #     del mapped
 
     if distant:
         system("rm %s/*" % tmpd)
@@ -614,17 +640,22 @@ def run(faaf, identity, ncor, outfile, pblat,
     dataframes = pd.concat(pool.map(func, connected_ids, chunksize=1),
                            ignore_index=True)
     del connected_ids
-    groups2reanalyse = dataframes[(
-        (dataframes["seq_count"] > dataframes["samp_count"]) |
-        (dataframes["std"] > np.sqrt(dataframes["min"])) |
-        (dataframes["min"] < mindiff * dataframes["max"])) &
-                                  (dataframes["seq_count"] > 2)]
+    full = False
+    if full:
+        groups2reanalyse = dataframes[(
+            (dataframes["seq_count"] > dataframes["samp_count"]) |
+            (dataframes["std"] > np.sqrt(dataframes["min"])) |
+            (dataframes["min"] < mindiff * dataframes["max"])) &
+                                      (dataframes["seq_count"] > 2)]
+    else:
+        groups2reanalyse = dataframes[dataframes["seq_count"] > 2]
+
     col = ['cluster', 'samp_count', 'seq_count', 'min', 'median', 'mean',
            'std', 'max']
-    # groups2reanalyse = []
+    # Separating bigger and diverse clusters .....
     click.echo("Separating Paralogs .....")
     if len(groups2reanalyse):
-        print(len(groups2reanalyse), len(dataframes))
+        # print(len(groups2reanalyse), len(dataframes))
         print("Some sequences")
         time.sleep(5)
         dataframes = dataframes.drop(groups2reanalyse.index)
@@ -650,29 +681,30 @@ def run(faaf, identity, ncor, outfile, pblat,
                             seqid = "%s___%s___%s" % (seq_files_col[i], sq[0],
                                                       sq[1])
                             fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
-            func = partial(reanalysis_blat, blat, minmap, keepclean,
-                           mindiff, algo, identity, 1, adaptive, conn_thresh)
-            for lst in pool.map(func,  glob("tmp/*.faa"), chunksize=1):
-                print(len(lst))
+
+            func = partial(reanalysis_blat, pblat, minmap, mindiff,
+                           algo, identity, 1, adaptive, conn_thresh, tmpd)
+            for lst in pool.map(func,  glob("%s/*.faa" % tmpd), chunksize=1):
+                # print(len(lst))
                 new_groups += lst
 
         # Run multi processing system
         else:
             evalue = 5
             multi_groups2reanalyse = groups2reanalyse[
-                groups2reanalyse["seq_count"] >= ncor**2
+                groups2reanalyse["seq_count"] >= ncor*2
                 ]
             multi_groups2reanalyse = multi_groups2reanalyse[seq_files_col]
 
             # Smaller groups for single cores
             single_groups2reanalyse = groups2reanalyse[
-                groups2reanalyse["seq_count"] < ncor**2
+                groups2reanalyse["seq_count"] < ncor*2
                 ]
             single_groups2reanalyse = single_groups2reanalyse[seq_files_col]
             groups2reanalyse = single_groups2reanalyse.values.tolist()
-            system("rm tmp/*")
+            system("rm %s/*" % tmpd)
             for num, group_lst in enumerate(groups2reanalyse):
-                with open("tmp/%d.faa" % num, "w") as fout:
+                with open("%s/%d.faa" % (tmpd, num), "w") as fout:
                     for i, grp_gp in enumerate(group_lst):
                         if grp_gp == "*":
                             continue
@@ -682,12 +714,13 @@ def run(faaf, identity, ncor, outfile, pblat,
                             seqid = "%s___%s___%s" % (seq_files_col[i], sq[0],
                                                       sq[1])
                             fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
-            func = partial(blast_small, evalue,
-                           minmap, mindiff, algo,
-                           identity, adaptive, conn_thresh)
+            # def blast_small(blastp, makeblastdb, evalue, minmap,
+            #                 mindiff, algo, identity, adaptive, conn_thresh, infile):
+            func = partial(blast_small, blastp, makeblastdb, evalue, minmap,
+                           mindiff, algo, identity, adaptive, conn_thresh)
 
             #  For smaller group, send it directly to blast and get the result
-            for lst in pool.map(func,  glob("tmp/*.faa"), chunksize=1):
+            for lst in pool.map(func,  glob("%s/*.faa" % tmpd), chunksize=1):
                 new_groups += lst
 
             groups2reanalyse = multi_groups2reanalyse.values.tolist()
@@ -704,11 +737,12 @@ def run(faaf, identity, ncor, outfile, pblat,
                         temp_seq[seqid] = sequences[seqid]
                 seq_count = len(temp_seq)
                 sequences_perfile = seq_count//ncor + 1
-                system("rm tmp/*")
+                system("rm %s/*" % tmpd)
                 for i, j in enumerate(range(0, seq_count, sequences_perfile)):
-                    with open("tmp/%d.faa" % i, "w") as fout:
+                    with open("%s/%d.faa" % (tmpd, i), "w") as fout:
                         for k in seq_ids[j:j+sequences_perfile]:
                             fout.write(">%s\n%s\n" % (k, sequences[k]))
+                print("Kiran")
 
                 # Simply write a function which could do it for you.
                 new_groups += blast_big(evalue, minmap, keepclean, mindiff,
@@ -742,7 +776,7 @@ def run(faaf, identity, ncor, outfile, pblat,
     dataframes[col].to_csv(outfile, sep="\t", index=False)
     click.echo("Result file %s generated." % outfile)
     click.echo("Finished.....")
-    # rmtree("tmp")
+    rmtree(tmpd)
 
 
 if __name__ == '__main__':
