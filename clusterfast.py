@@ -91,6 +91,7 @@ def blast_dataframe(mapped2, mindiff, minmap, algo):
         mapped = mapped.drop(['q_r', 'd_r'], axis=1)
         mapped = mapped.rename(columns={0: "db", 1: "qr",
                                         10: "eval", 11: "bits"})
+    # print(mapped.shape)
     return mapped
 
 
@@ -205,7 +206,8 @@ def blast_table_analysis(blastdata, adaptive):
                         (qr_db_blast_data['qr_samp'] == row['qr_samp']) &
                         (qr_db_blast_data['bits'] >= adaptive * row['bits'])
                         ].index)
-    blast_data = blast_data.loc[selected_indexes, ]
+    # print(blast_data[blast_data.index.duplicated()])
+    blast_data = blast_data.loc[list(set(selected_indexes)), ]
 
     blast_data = blast_data.drop(["db_samp", "qr_samp"], axis=1)
     blast_data.loc[blast_data["db"] > blast_data["qr"], ["db", "qr"]
@@ -302,14 +304,19 @@ def blastpf(blastp, algo, identity, evalue, mindiff, minmap,
             mclinfile, db_query):
     """Running BLAST and seleting best searches."""
     db, infile = db_query
-    infile_ = infile.split(".")[0]
+    # infile_ = infile.split(".faa")[0]
+
+    db_ = db.split(".faa")[0]
+    query_id = path.split(infile)[1].split(".faa")[0]
+    outfilebs = "%s_%s" % (db_, query_id)
     if mclinfile == "orth":
         # makeblastdbf(db)
         system("%s -db %s.bdb -query %s -evalue %e"
-               " -outfmt 6 > %s.bst" % (blastp, infile_, infile,
-                                        evalue, infile_))
-        if stat("%s.bst" % infile_).st_size:
-            mapped = pd.read_table("%s.bst" % infile_, header=None)
+               " -outfmt 6 > %s.bst" % (blastp, db_, infile,
+                                        evalue, outfilebs))
+        if stat("%s.bst" % outfilebs).st_size:
+            # print("%s.bst" % outfilebs)
+            mapped = pd.read_table("%s.bst" % outfilebs, header=None)
             mapped = blast_dataframe(mapped, mindiff, minmap, algo)
             mapped = mapped[mapped["identity"] >= identity]
             mapped = mapped.sort_values(['eval', 'bits', "identity"],
@@ -319,9 +326,7 @@ def blastpf(blastp, algo, identity, evalue, mindiff, minmap,
         else:
             return pd.DataFrame()
 
-    db_ = db.split(".")[0]
-    query_id = path.split(infile)[1].split(".faa")[0]
-    outfilebs = "%s_%s" % (db_, query_id)
+
     system("%s -db %s.bdb -query %s -evalue %e"
            " -outfmt 6 > %s.bst" % (blastp, db_, infile,
                                     evalue, outfilebs))
@@ -395,7 +400,7 @@ def blast_big(blastp, makeblastdb, tmpd, evalue, minmap,
     func = partial(blastpf, blastp, algo, identity, evalue, mindiff,
                    minmap, "orth")
     df = pool.map(func, its.product(files, repeat=2), chunksize=1)
-    df = pd.concat(df)
+    df = pd.concat(df, ignore_index=True)
     if len(df):
         df = blast_table_analysis(df, adaptive)
         connected_ids = nx.Graph()
@@ -461,14 +466,6 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
               " file from differnt sample", type=str,
               default="aa2",
               show_default=True)
-# @click.option("-identity_close", help="Expected minimum sequence similarity"
-#               " most distant samples for closely related sample. Will be used"
-#               "when -distant option is False",
-#               type=float, default=0.8, show_default=True)
-# @click.option("-identity_distant", help="Expected minimum sequence similarity"
-#               " most distant samples for distantly related sample. Will be"
-#               " used when --distant option is True",
-#               type=float, default=0.25, show_default=True)
 @click.option("-identity", help="Expected minimum sequence similarity"
               " For distant 0.25 will be used"
               " For close 0.8 will be used as default",
@@ -625,9 +622,11 @@ def run(faaf, identity, ncor, outfile, pblat,
         files = glob("%s/*.faa" % tmpd)
         func = partial(makeblastdbf, makeblastdb)
         pool.map(func, files)
-        func = partial(blastpf, blastp, algo, 0.9 * identity, evalue,
+        # TODO: make it bidirectional to avoid below replications
+        func = partial(blastpf, blastp, algo, identity, evalue,
                        mindiff, minmap, "X")
         pairs = pool.map(func, its.product(files, repeat=2), chunksize=1)
+        # TODO: Use dataframes here.
         for pair in pairs:
             connected_ids.add_edges_from(pair)
 
@@ -640,7 +639,7 @@ def run(faaf, identity, ncor, outfile, pblat,
     dataframes = pd.concat(pool.map(func, connected_ids, chunksize=1),
                            ignore_index=True)
     del connected_ids
-    full = False
+    full = True
     if full:
         groups2reanalyse = dataframes[(
             (dataframes["seq_count"] > dataframes["samp_count"]) |
@@ -648,16 +647,19 @@ def run(faaf, identity, ncor, outfile, pblat,
             (dataframes["min"] < mindiff * dataframes["max"])) &
                                       (dataframes["seq_count"] > 2)]
     else:
+        # This part may be used for some other purpose in future
         groups2reanalyse = dataframes[dataframes["seq_count"] > 2]
 
     col = ['cluster', 'samp_count', 'seq_count', 'min', 'median', 'mean',
            'std', 'max']
     # Separating bigger and diverse clusters .....
-    click.echo("Separating Paralogs .....")
     if len(groups2reanalyse):
-        # print(len(groups2reanalyse), len(dataframes))
-        print("Some sequences")
-        time.sleep(5)
+        click.echo("Separating Paralogs .....")
+        # click.echo(len(groups2reanalyse), len(dataframes))
+        click.echo(len(groups2reanalyse), "Clusters are bing tried to"
+                   " be ragmented again...... ")
+        # print("Some sequences")
+        # time.sleep(5)
         dataframes = dataframes.drop(groups2reanalyse.index)
         new_groups = []
         seq_files_col = groups2reanalyse.columns.difference(col)
@@ -690,15 +692,15 @@ def run(faaf, identity, ncor, outfile, pblat,
 
         # Run multi processing system
         else:
-            evalue = 5
+            evalue = 1  # chosen dues to small number sequences
             multi_groups2reanalyse = groups2reanalyse[
-                groups2reanalyse["seq_count"] >= ncor*2
+                groups2reanalyse["seq_count"] >= ncor**2
                 ]
             multi_groups2reanalyse = multi_groups2reanalyse[seq_files_col]
 
             # Smaller groups for single cores
             single_groups2reanalyse = groups2reanalyse[
-                groups2reanalyse["seq_count"] < ncor*2
+                groups2reanalyse["seq_count"] < ncor**2
                 ]
             single_groups2reanalyse = single_groups2reanalyse[seq_files_col]
             groups2reanalyse = single_groups2reanalyse.values.tolist()
@@ -743,12 +745,15 @@ def run(faaf, identity, ncor, outfile, pblat,
                     with open("%s/%d.faa" % (tmpd, i), "w") as fout:
                         for k in seq_ids[j:j+sequences_perfile]:
                             fout.write(">%s\n%s\n" % (k, sequences[k]))
-                print("Kiran")
+                # print("Kiran")
 
                 # Simply write a function which could do it for you.
-                new_groups += blast_big(evalue, minmap, keepclean, mindiff,
-                                        algo, identity, ncor, adaptive,
-                                        conn_thresh)
+                # def blast_big(blastp, makeblastdb, tmpd, evalue, minmap,
+                #               mindiff, algo, identity, ncor, adaptive, conn_thresh):
+                # ncor = 1
+                new_groups += blast_big(blastp, makeblastdb, tmpd, evalue,
+                                        minmap, mindiff, algo, identity, ncor,
+                                        adaptive, conn_thresh)
 
         del sequences
         func = partial(id_arrange_df, base_names)
