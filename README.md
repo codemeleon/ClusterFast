@@ -44,7 +44,7 @@ If the installation fails, please contact your system administrator. If you disc
 
 # Input Files
 
-The input format for ClusterFast is protein sequence files (extension .faa) of translated amino acid sequences of predicted open reading frames for each genome (sample) in the input dataset. The file and/or sequence names must not conatain  **___(three underscores)**. These files can be created using [Prokka](https://github.com/tseemann/prokka).
+The input format for ClusterFast is protein sequence files (extension .faa) of translated amino acid sequences of predicted open reading frames for each genome (sample) in the input dataset. The file and/or sequence names must not contain  **___(three underscores)**. These files can be created using [Prokka](https://github.com/tseemann/prokka).
 
 # Usage
 
@@ -52,22 +52,22 @@ clusterfast -faaf < protein_seq_folder > -identity < sequence_similarity > -ncor
 
 
 - --help/-h : Help
-- -faaf: Folder contain only protein fasta files
-- -identity: Similarity between sequences. Defaults: 0.8 for closly related samples and 0.25 for closly related samples
+- -faaf: Folder contain only protein fasta files with file extension **.faa**
+- -identity: Similarity between sequences. Defaults: 0.8 for closly related samples and 0.25 for distantly related samples
 - -ncor: Number of processor to use
 - -outfile: Output file path
-- -pblat: Path for pblat executable. Default: it will consider it in system path(pblat)
-- -makeblastdb: Path for makeblastdb executable. Default: it will consider it in system path (makeblastdb)
-- -blastp: Path for blastp executable. Default: it will consider it in system path (blastp)
+- -pblat: Path for pblat executable. Default: pblat
+- -makeblastdb: Path for makeblastdb executable. Default: makeblastdb
+- -blastp: Path for blastp executable. Default: blastp
 - -evalue: BLAST evalue. Default: 1e-10
-- -distant: Are samples distaly related. Default: False
+- -distant: Are samples distaly related? Default: False
 - -seed: For random file pairing. Default: 1234
 - -minlen: Minimun length of sequences used in clustering. Default: 50
 - -mindiff: Length of smaller sequences relative longer, to consider a blast hit. Default: 0.5
 - minmap: Minimum mapping length relative to longer sequence in pair. Default: 0.5
 - conn_threshold: Connection Threshold used in ProteinOrtho4.0. Default: 0.1
 - -adaptive: Adapative search value as in ProteinOrtho4. Default: 0.95
-- -algo: four different Identity calculation method. Use in final interation and mcl. Default: anm
+- -algo: For different Identity calculation method. Default: anm
 
   - **blast**: 2*matches/(sum of length of sequences)
   - **anm**: matches/tolal alignment length as following.
