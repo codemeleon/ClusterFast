@@ -59,7 +59,6 @@ def flat_list(lst):
 def blast_dataframe(mapped2, mindiff, minmap, algo):
     """BLAST dataframe cleaner."""
     mapped = mapped2.copy()
-    # mapped = mapped[mapped[0] != mapped[1]]
     mapped.loc[:, "qsize"] = mapped[0].map(lambda x: int(x.split("___")[2]))
     mapped.loc[:, "ssize"] = mapped[1].map(lambda x: int(x.split("___")[2]))
     if minmap:
@@ -91,7 +90,6 @@ def blast_dataframe(mapped2, mindiff, minmap, algo):
         mapped = mapped.drop(['q_r', 'd_r'], axis=1)
         mapped = mapped.rename(columns={0: "db", 1: "qr",
                                         10: "eval", 11: "bits"})
-    # print(mapped.shape)
     return mapped
 
 
@@ -133,7 +131,7 @@ def blatf(algo, pblat, cor, beginning, identity, minlen,
 
         if mclinfile == "orth":
             mapped = mapped[mapped["db"] != mapped["qr"]]
-            return mapped
+            return mapped[["db", "qr", "bits"]]
 
         mapped = mapped[["db", "qr"]].values.tolist()
         connected_ids = nx.Graph()
@@ -195,33 +193,39 @@ def blast_table_analysis(blastdata, adaptive):
             if len(drop_ix):
                 qr_db_blast_data_max = qr_db_blast_data_max.drop(drop_ix)
 
-            # bits_max = 0.9 * bits_max #- np.sqrt(bits_max)
-            # Choose one of the idea
-            # qr_db_blast_data_max = qr_db_blast_data_max.loc[
-            #     qr_db_blast_data_max['bits'] >= bits_max,
-            # ]
             for i, row in qr_db_blast_data_max.iterrows():
                 selected_indexes += list(
                     qr_db_blast_data[
                         (qr_db_blast_data['qr_samp'] == row['qr_samp']) &
                         (qr_db_blast_data['bits'] >= adaptive * row['bits'])
                         ].index)
-    # print(blast_data[blast_data.index.duplicated()])
     blast_data = blast_data.loc[list(set(selected_indexes)), ]
 
     blast_data = blast_data.drop(["db_samp", "qr_samp"], axis=1)
     blast_data.loc[blast_data["db"] > blast_data["qr"], ["db", "qr"]
                    ] = blast_data.loc[blast_data["db"] > blast_data["qr"],
                                       ["qr", "db"]].values
-    # bits_mean = np.mean(blast_data["bits"])
-    # bits_left = bits_mean - np.sqrt(bits_mean)
-    # bits_right = bits_mean + np.sqrt(bits_mean)
-    # blast_data = blast_data.loc[((blast_data["bits"] > bits_left) &
-    #                              (blast_data["bits"] < bits_right)), ]
     blast_data_group = blast_data.groupby(["db", "qr"]).size().reset_index()
     blast_data_group = blast_data_group[blast_data_group[0] > 1]
     blast_data_group = blast_data_group[["db", "qr"]].values.tolist()
     return blast_data_group
+
+def norm_mult(max_degree, graph, connected_ids_list, node_count):
+    to_return = np.ones(node_count)
+    for i in range(node_count):
+        to_return[i] = ((2 * max_degree) -
+                        len(graph.neighbors(
+                            connected_ids_list[i])))
+
+    return to_return
+
+
+def neigh_index(df, graph, connected_ids_list, node_count):
+    to_return = {}
+    for i in range(node_count):
+        to_return[i] = df['ids'].isin(graph.neighbors(connected_ids_list[i]))
+    return to_return
+
 
 
 def group_seprator(graph, conn_threshold):
@@ -244,6 +248,8 @@ def group_seprator(graph, conn_threshold):
     connected_ids_lists = list(nxacc.connected_components(graph))
     for connected_ids in connected_ids_lists:
         connected_ids_list = list(connected_ids)
+        connected_ids_list.sort()
+        connected_ids_df = pd.DataFrame.from_dict({'ids': connected_ids_list})
         node_count = len(connected_ids_list)
         sub_graph = graph.subgraph(connected_ids_list)
         edge_count = len(sub_graph.edges())
@@ -253,6 +259,10 @@ def group_seprator(graph, conn_threshold):
         if max_pair == edge_count:
             to_return.append(connected_ids_list)
         else:
+            normmult = norm_mult(max_degree, sub_graph, connected_ids_list,
+                                 node_count)
+            neighindex = neigh_index(connected_ids_df, sub_graph,
+                                     connected_ids_list, node_count)
             x = np.random.random(node_count)
             x_hat = x - np.mean(x)
             last_len = np.linalg.norm(x_hat)
@@ -262,19 +272,15 @@ def group_seprator(graph, conn_threshold):
             while True:
                 x = np.zeros(node_count)
                 for i in range(node_count):
-                    for nb in sub_graph.neighbors(connected_ids_list[i]):
-                        x[i] += norm[connected_ids_list.index(nb)] # Change with numpy values
-                for k in range(node_count):
-                    norm[k] *= ((2 * max_degree) -
-                                len(sub_graph.neighbors(
-                                    connected_ids_list[i])))
+                    x[i] += np.sum(norm[neighindex[i]])
+                norm *= normmult
                 norm += x
                 x_hat = norm - np.mean(norm)
                 current_len = np.linalg.norm(x_hat)
                 if current_len == 0:
                     current_len = 1e-9
                 norm = x_hat/current_len
-                if abs(current_len - last_len) < 0.001:
+                if np.abs(current_len - last_len) < 0.001:
                     break
                 last_len = current_len
 
@@ -304,25 +310,22 @@ def blastpf(blastp, algo, identity, evalue, mindiff, minmap,
             mclinfile, db_query):
     """Running BLAST and seleting best searches."""
     db, infile = db_query
-    # infile_ = infile.split(".faa")[0]
 
     db_ = db.split(".faa")[0]
     query_id = path.split(infile)[1].split(".faa")[0]
     outfilebs = "%s_%s" % (db_, query_id)
     if mclinfile == "orth":
-        # makeblastdbf(db)
         system("%s -db %s.bdb -query %s -evalue %e"
                " -outfmt 6 > %s.bst" % (blastp, db_, infile,
                                         evalue, outfilebs))
         if stat("%s.bst" % outfilebs).st_size:
-            # print("%s.bst" % outfilebs)
             mapped = pd.read_table("%s.bst" % outfilebs, header=None)
             mapped = blast_dataframe(mapped, mindiff, minmap, algo)
             mapped = mapped[mapped["identity"] >= identity]
             mapped = mapped.sort_values(['eval', 'bits', "identity"],
                                         ascending=[True, False, False])
             mapped = mapped.drop_duplicates(['db', 'qr'])
-            return mapped
+            return mapped[["db", "qr", "bits"]]
         else:
             return pd.DataFrame()
 
@@ -391,16 +394,11 @@ def paired_list(lst):
 
 
 def multi_sep(adaptive, conn_thresh, df):
-    # print(df)
     if len(df):
         df = blast_table_analysis(df, adaptive)
-        # print(time.time(), "Idiot")
-
         connected_ids = nx.Graph()
         connected_ids.add_edges_from(df)
         connected_ids = group_seprator(connected_ids, conn_thresh)
-        # print(time.time(), "Ghonchu")
-
         return connected_ids
     else:
         return []
@@ -412,27 +410,11 @@ def blast_big(blastp, makeblastdb, tmpd, evalue, minmap,
     func = partial(makeblastdbf, makeblastdb)
     pool = Pool(ncor)
     pool.map(func, files)
-    # print(time.time(), "Anmol")
     func = partial(blastpf, blastp, algo, identity, evalue, mindiff,
                    minmap, "orth")
     df = pool.map(func, its.product(files, repeat=2), chunksize=1)
-    # print(time.time(), "kiran")
     df = pd.concat(df, ignore_index=True)
     return df
-    # print(time.time(), "Silly")
-    #
-    # if len(df):
-    #     df = blast_table_analysis(df, adaptive)
-    #     print(time.time(), "Idiot")
-    #
-    #     connected_ids = nx.Graph()
-    #     connected_ids.add_edges_from(df)
-    #     connected_ids = group_seprator(connected_ids, conn_thresh)
-    #     print(time.time(), "Ghonchu")
-    #
-    #     return connected_ids
-    # else:
-    #     return []
 
 
 def blast_small(blastp, makeblastdb, evalue, minmap,
@@ -442,21 +424,11 @@ def blast_small(blastp, makeblastdb, evalue, minmap,
     df = blastpf(blastp, algo, identity, evalue, mindiff, minmap,
                  "orth", (infile, infile))
     return df
-    # if len(df):
-    #     df = blast_table_analysis(df, adaptive)
-    #     connected_ids = nx.Graph()
-    #     connected_ids.add_edges_from(df)
-    #     connected_ids = group_seprator(connected_ids, conn_thresh)
-    #     return connected_ids
-    # else:
-    #     return []
 
 
 def reanalysis_blat(pblat, minmap, mindiff,
                     algo, identity, ncor, adaptive, conn_thresh, tmpd, infile):
     """Fragment large cluster in smaller."""
-    # def blatf(algo, pblat, cor, beginning, identity, minlen,
-    #          mindiff, minmap, mclinfile, tmpd, pair):
     df = blatf(algo, pblat, ncor, False, identity, None,
                mindiff, minmap, "orth", tmpd, (infile, infile))
     if len(df):
@@ -618,21 +590,6 @@ def run(faaf, identity, ncor, outfile, pblat,
         pairs = pool.map(func, its.product(files, repeat=2), chunksize=1)
         for pair in pairs:
             connected_ids.add_edges_from(pair[["db", "qr"]].values.tolist())
-        ### Ignore below for test purpose
-        # base_name = aa_files[0].split('.faa')[0]
-        # click.echo("Running BLAT to report distantly related sequences...")
-        # # TODO: Check for split and run.
-        # Popen([pblat, '-threads=%d' % ncor, "-out=blast8",
-        #        '-prot', '-noHead', aa_files[0], aa_files[0],
-        #        '%s.bst' % base_name],
-        #       stdout=PIPE, stderr=STDOUT).communicate()
-        # if stat('%s.bst' % base_name).st_size:
-        #     mapped = pd.read_table("%s.bst" % base_name, header=None)
-        #     mapped = blast_dataframe(mapped, mindiff, minmap, algo)
-        #     mapped = mapped[mapped["identity"] >= 0.9 * identity]
-        #     mapped = mapped[mapped["db"] != mapped["qr"]]
-        #     connected_ids.add_edges_from(mapped[["db", "qr"]].values.tolist())
-        #     del mapped
 
     if distant:
         system("rm %s/*" % tmpd)
@@ -681,11 +638,8 @@ def run(faaf, identity, ncor, outfile, pblat,
     evalue **= 2 # Highly similar sequences expected in the
     if len(groups2reanalyse):
         click.echo("Separating Paralogs .....")
-        # click.echo(len(groups2reanalyse), len(dataframes))
-        click.echo(str(len(groups2reanalyse)) + " Clusters are bing tried to"
-                   " be ragmented again...... ")
-        # print("Some sequences")
-        # time.sleep(5)
+        click.echo(str(len(groups2reanalyse)) + " Clusters are being tried to"
+                   " be fragmented again...... ")
         dataframes = dataframes.drop(groups2reanalyse.index)
         new_groups = []
         seq_files_col = groups2reanalyse.columns.difference(col)
@@ -693,8 +647,6 @@ def run(faaf, identity, ncor, outfile, pblat,
         func = partial(return_sequences, faaf, groups2reanalyse[seq_files_col])
         for seqdict in map(func, seq_files_col):
             sequences.update(seqdict)
-        # distant = False
-        # identity = 0.2
         if not distant:
             groups2reanalyse = groups2reanalyse[seq_files_col]
             groups2reanalyse = groups2reanalyse.values.tolist()
