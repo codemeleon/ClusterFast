@@ -255,7 +255,7 @@ def group_seprator(graph, conn_threshold):
         else:
             x = np.random.random(node_count)
             x_hat = x - np.mean(x)
-            last_len = np.sqrt(np.sum(np.square(x_hat)))
+            last_len = np.linalg.norm(x_hat)
             if last_len == 0:
                 last_len = 1e-9
             norm = x_hat/last_len
@@ -263,14 +263,14 @@ def group_seprator(graph, conn_threshold):
                 x = np.zeros(node_count)
                 for i in range(node_count):
                     for nb in sub_graph.neighbors(connected_ids_list[i]):
-                        x[i] += norm[connected_ids_list.index(nb)]
+                        x[i] += norm[connected_ids_list.index(nb)] # Change with numpy values
                 for k in range(node_count):
                     norm[k] *= ((2 * max_degree) -
                                 len(sub_graph.neighbors(
                                     connected_ids_list[i])))
                 norm += x
                 x_hat = norm - np.mean(norm)
-                current_len = np.sqrt(np.sum(np.square(x_hat)))
+                current_len = np.linalg.norm(x_hat)
                 if current_len == 0:
                     current_len = 1e-9
                 norm = x_hat/current_len
@@ -390,6 +390,21 @@ def paired_list(lst):
     return [[lst[i], lst[i+1]] for i in range(len(lst)-1)]
 
 
+def multi_sep(adaptive, conn_thresh, df):
+    # print(df)
+    if len(df):
+        df = blast_table_analysis(df, adaptive)
+        # print(time.time(), "Idiot")
+
+        connected_ids = nx.Graph()
+        connected_ids.add_edges_from(df)
+        connected_ids = group_seprator(connected_ids, conn_thresh)
+        # print(time.time(), "Ghonchu")
+
+        return connected_ids
+    else:
+        return []
+
 def blast_big(blastp, makeblastdb, tmpd, evalue, minmap,
               mindiff, algo, identity, ncor, adaptive, conn_thresh):
     """Fragment large cluster in smaller."""
@@ -397,18 +412,27 @@ def blast_big(blastp, makeblastdb, tmpd, evalue, minmap,
     func = partial(makeblastdbf, makeblastdb)
     pool = Pool(ncor)
     pool.map(func, files)
+    # print(time.time(), "Anmol")
     func = partial(blastpf, blastp, algo, identity, evalue, mindiff,
                    minmap, "orth")
     df = pool.map(func, its.product(files, repeat=2), chunksize=1)
+    # print(time.time(), "kiran")
     df = pd.concat(df, ignore_index=True)
-    if len(df):
-        df = blast_table_analysis(df, adaptive)
-        connected_ids = nx.Graph()
-        connected_ids.add_edges_from(df)
-        connected_ids = group_seprator(connected_ids, conn_thresh)
-        return connected_ids
-    else:
-        return []
+    return df
+    # print(time.time(), "Silly")
+    #
+    # if len(df):
+    #     df = blast_table_analysis(df, adaptive)
+    #     print(time.time(), "Idiot")
+    #
+    #     connected_ids = nx.Graph()
+    #     connected_ids.add_edges_from(df)
+    #     connected_ids = group_seprator(connected_ids, conn_thresh)
+    #     print(time.time(), "Ghonchu")
+    #
+    #     return connected_ids
+    # else:
+    #     return []
 
 
 def blast_small(blastp, makeblastdb, evalue, minmap,
@@ -417,14 +441,15 @@ def blast_small(blastp, makeblastdb, evalue, minmap,
     makeblastdbf(makeblastdb, infile)
     df = blastpf(blastp, algo, identity, evalue, mindiff, minmap,
                  "orth", (infile, infile))
-    if len(df):
-        df = blast_table_analysis(df, adaptive)
-        connected_ids = nx.Graph()
-        connected_ids.add_edges_from(df)
-        connected_ids = group_seprator(connected_ids, conn_thresh)
-        return connected_ids
-    else:
-        return []
+    return df
+    # if len(df):
+    #     df = blast_table_analysis(df, adaptive)
+    #     connected_ids = nx.Graph()
+    #     connected_ids.add_edges_from(df)
+    #     connected_ids = group_seprator(connected_ids, conn_thresh)
+    #     return connected_ids
+    # else:
+    #     return []
 
 
 def reanalysis_blat(pblat, minmap, mindiff,
@@ -546,7 +571,7 @@ def run(faaf, identity, ncor, outfile, pblat,
         ncor = cpu_count()
 
     # Check done ...
-    tmpd = tempfile.mkdtemp()
+    tmpd = tempfile.mkdtemp(dir=os.getcwd())
 
     pool = Pool(ncor)
     aa_files = glob("%s/*.faa" % faaf)
@@ -652,11 +677,12 @@ def run(faaf, identity, ncor, outfile, pblat,
 
     col = ['cluster', 'samp_count', 'seq_count', 'min', 'median', 'mean',
            'std', 'max']
-    # Separating bigger and diverse clusters .....
+        # Separating bigger and diverse clusters .....
+    evalue **= 2 # Highly similar sequences expected in the
     if len(groups2reanalyse):
         click.echo("Separating Paralogs .....")
         # click.echo(len(groups2reanalyse), len(dataframes))
-        click.echo(len(groups2reanalyse), "Clusters are bing tried to"
+        click.echo(str(len(groups2reanalyse)) + " Clusters are bing tried to"
                    " be ragmented again...... ")
         # print("Some sequences")
         # time.sleep(5)
@@ -667,7 +693,8 @@ def run(faaf, identity, ncor, outfile, pblat,
         func = partial(return_sequences, faaf, groups2reanalyse[seq_files_col])
         for seqdict in map(func, seq_files_col):
             sequences.update(seqdict)
-
+        # distant = False
+        # identity = 0.2
         if not distant:
             groups2reanalyse = groups2reanalyse[seq_files_col]
             groups2reanalyse = groups2reanalyse.values.tolist()
@@ -691,8 +718,7 @@ def run(faaf, identity, ncor, outfile, pblat,
                 new_groups += lst
 
         # Run multi processing system
-        else:
-            evalue = 1  # chosen dues to small number sequences
+        else:   # chosen dues to small number sequences
             multi_groups2reanalyse = groups2reanalyse[
                 groups2reanalyse["seq_count"] >= ncor**2
                 ]
@@ -703,27 +729,7 @@ def run(faaf, identity, ncor, outfile, pblat,
                 groups2reanalyse["seq_count"] < ncor**2
                 ]
             single_groups2reanalyse = single_groups2reanalyse[seq_files_col]
-            groups2reanalyse = single_groups2reanalyse.values.tolist()
-            system("rm %s/*" % tmpd)
-            for num, group_lst in enumerate(groups2reanalyse):
-                with open("%s/%d.faa" % (tmpd, num), "w") as fout:
-                    for i, grp_gp in enumerate(group_lst):
-                        if grp_gp == "*":
-                            continue
-                        sq_lst = grp_gp.split(",")
-                        for sq_ls in sq_lst:
-                            sq = sq_ls.split(":")
-                            seqid = "%s___%s___%s" % (seq_files_col[i], sq[0],
-                                                      sq[1])
-                            fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
-            # def blast_small(blastp, makeblastdb, evalue, minmap,
-            #                 mindiff, algo, identity, adaptive, conn_thresh, infile):
-            func = partial(blast_small, blastp, makeblastdb, evalue, minmap,
-                           mindiff, algo, identity, adaptive, conn_thresh)
-
-            #  For smaller group, send it directly to blast and get the result
-            for lst in pool.map(func,  glob("%s/*.faa" % tmpd), chunksize=1):
-                new_groups += lst
+            dfs = []
 
             groups2reanalyse = multi_groups2reanalyse.values.tolist()
             for num, group_lst in enumerate(groups2reanalyse):
@@ -751,9 +757,34 @@ def run(faaf, identity, ncor, outfile, pblat,
                 # def blast_big(blastp, makeblastdb, tmpd, evalue, minmap,
                 #               mindiff, algo, identity, ncor, adaptive, conn_thresh):
                 # ncor = 1
-                new_groups += blast_big(blastp, makeblastdb, tmpd, evalue,
+                dfs.append(blast_big(blastp, makeblastdb, tmpd, evalue,
                                         minmap, mindiff, algo, identity, ncor,
-                                        adaptive, conn_thresh)
+                                        adaptive, conn_thresh))
+            groups2reanalyse = single_groups2reanalyse.values.tolist()
+            system("rm %s/*" % tmpd)
+            for num, group_lst in enumerate(groups2reanalyse):
+                with open("%s/%d.faa" % (tmpd, num), "w") as fout:
+                    for i, grp_gp in enumerate(group_lst):
+                        if grp_gp == "*":
+                            continue
+                        sq_lst = grp_gp.split(",")
+                        for sq_ls in sq_lst:
+                            sq = sq_ls.split(":")
+                            seqid = "%s___%s___%s" % (seq_files_col[i], sq[0],
+                                                      sq[1])
+                            fout.write(">%s\n%s\n" % (seqid, sequences[seqid]))
+            # def blast_small(blastp, makeblastdb, evalue, minmap,
+            #                 mindiff, algo, identity, adaptive, conn_thresh, infile):
+            func = partial(blast_small, blastp, makeblastdb, evalue, minmap,
+                           mindiff, algo, identity, adaptive, conn_thresh)
+
+            #  For smaller group, send it directly to blast and get the result
+            for lst in pool.map(func,  glob("%s/*.faa" % tmpd), chunksize=1):
+                dfs.append(lst)
+            func = partial(multi_sep, adaptive, conn_thresh)
+            for lst in pool.map(func, dfs, chunksize=1):
+                new_groups += lst
+
 
         del sequences
         func = partial(id_arrange_df, base_names)
