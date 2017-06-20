@@ -4,7 +4,7 @@ ClusterFast is a scalable, rapid and (CPU and memory) efficient command-line int
 
 ClusterFast works by first grouping the most similar protein sequences encoded between a random pair of genomes (files) within the input dataset, then choosing the longest sequence for further comparison to protein sequences selected from another pair of genomes until only one file remains. This is then used to identify less similar or paralogous sequences. The tool is suitable for use with both prokaryotic and eukaryotic genomes. By employing this novel approach, ClusterFast substantially reduces the memory and processing time required for the clustering of orthologous proteins compared to other avaliable programs.
 
-Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core.
+Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core. Using a test dataset of 62 bacterial genomes composed of multiple different specieis, ClusterFast excecuted in ~1 hour on X cores?
 
 ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and ProteinOrtho4.0 algorithm.
 
