@@ -11,20 +11,21 @@ ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and Prot
 # External tools
 
 _Expected to be in system path or provided in the options_
-- PBLAT: <http://icebert.github.io/pblat/>
-- NCBI BLAST suit
+
+-   [PBLAT](http://icebert.github.io/pblat/)
+-   NCBI BLAST suit
 
 # Python and module dependencies
 
 There are a number of dependencies required for ClusterFast, with instructions specific to the type of system you have:
 
-- Python 3+ (Python2+ not tested)
-- NumPy
-- SciPy
-- Pandas
-- Click
-- BioPython
-- NetworkX
+-   Python 3+ (Python2+ not tested)
+-   NumPy
+-   SciPy
+-   Pandas
+-   Click
+-   BioPython
+-   NetworkX
 
 _Modules should be installed using ClusterFast installation._
 
@@ -32,12 +33,13 @@ _Modules should be installed using ClusterFast installation._
 _Note: user might need to be the root_
 
 ## Suggested method
->pip install git+https://github.com/codemeleon/ClusterFast.git
+>pip install git+<https://github.com/codemeleon/ClusterFast.git>
 
 ## Alternative method
-1. git clone https://github.com/codemeleon/ClusterFast.git
-2. cd ClusterFast
-3. python setup.py install
+
+1.  git clone <https://github.com/codemeleon/ClusterFast.git>
+2.  cd ClusterFast
+3.  python setup.py install
 
 
 If the installation fails, please contact your system administrator. If you discover any bugs, please let us know by emailing anmol@liv.ac.uk
@@ -51,31 +53,31 @@ The input format for ClusterFast is protein sequence files (extension .faa) of t
 clusterfast -faaf < protein_seq_folder > -identity < sequence_similarity > -ncor < #_of_cores_to_use > -outfile < outputfile > -pblat < pblat_absolute_path > -blastp < blast_absolute_path > -makeblastdb < makeblastdb_path > -sim_algo < blat|anm > -minlen < minmum_sequence_size_for_clustering > -mindiff < Sequence_difference_in_pair_sequenc > -minmap < Minimum_map_length_relative_to_longer_sequence_in_pair > -seed < random_number_for_file_pairing >
 
 
-- --help/-h : Help
-- -faaf: Folder contain only protein fasta files with file extension **.faa**
-- -identity: Similarity between sequences. Defaults: 0.8 for closly related samples and 0.25 for distantly related samples
-- -ncor: Number of processor to use
-- -outfile: Output file path
-- -pblat: Path for pblat executable. Default: pblat
-- -makeblastdb: Path for makeblastdb executable. Default: makeblastdb
-- -blastp: Path for blastp executable. Default: blastp
-- -evalue: BLAST evalue. Default: 1e-10
-- -distant: Are samples distaly related? Default: False
-- -seed: For random file pairing. Default: 1234
-- -minlen: Minimun length of sequences used in clustering. Default: 50
-- -mindiff: Length of smaller sequences relative longer, to consider a blast hit. Default: 0.5
-- minmap: Minimum mapping length relative to longer sequence in pair. Default: 0.5
-- conn_threshold: Connection Threshold used in ProteinOrtho4.0. Default: 0.1
-- -adaptive: Adapative search value as in ProteinOrtho4. Default: 0.95
-- -algo: For different Identity calculation method. Default: anm
+-   --help/-h : Help
+-   -faaf: Folder contain protein fasta files with file extension **.faa**
+-   -identity: Similarity between sequences. Defaults: 0.8 for closly related samples and 0.25 for distantly related samples
+-   -ncor: Number of processor to use
+-   -outfile: Output file path
+-   -pblat: Path for pblat executable. Default: pblat
+-   -makeblastdb: Path for makeblastdb executable. Default: makeblastdb
+-   -blastp: Path for blastp executable. Default: blastp
+-   -evalue: BLAST evalue. Default: 1e-10
+-   -distant: Are samples distaly related? Default: False
+-   -seed: For random file pairing. Default: 1234
+-   -minlen: Minimun length of sequences used in clustering. Default: 50
+-   -mindiff: Length of smaller sequences relative longer, to consider a blast hit. Default: 0.5
+-   minmap: Minimum mapping length relative to longer sequence in pair. Default: 0.5
+-   conn_threshold: Connection Threshold used in ProteinOrtho4.0. Default: 0.1
+-   -adaptive: Adapative search value as in ProteinOrtho4. Default: 0.95
+-   -algo: For different Identity calculation method. Default: anm
 
-  - **blast**: 2*matches/(sum of length of sequences)
-  - **anm**: matches/tolal alignment length as following.
+    -   **blast**: 2*matches/(sum of length of sequences)
+    -   **anm**: matches/tolal alignment length as following.
 
-    - "*" represents matches in the alignment. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
-    - `ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ`
-    - `---*****--******---***-**--******-----`
-    - `---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----`
+    -   "*" represents matches in the alignment. Total alignment length includes overhanging sequences, gaps in two sequences, mismatches and matches
+    -   `ADGTHADT--FGGHJJ---DFGDTJHKJLKSDFHKJLJ`
+    -   `---*****--******---***-**--******-----`
+    -   `---THADTFGFGGHJJSDFDFGFTJKHJLKSDF-----`
 
 
 # License
@@ -84,13 +86,37 @@ GPLv3
 
 # Benchmarking
 
-_Figures are coming soon_
+The benchmarking was performed comapare to ProteinOrtho4.0 on two different datasets
 
-# Requests
+## [Kulohoma BW _et.al_](https://www.ncbi.nlm.nih.gov/pubmed/26259813)
 
-Suggestions for improvements are welcome.
+
+-   140 _S. pneumonia_ samples
+-   ~1600 protein sequences per samples
+-   20 Cores
+-   ProteinOrtho4.0 : ~8 hours
+-   ClusterFast : 5 Minutes (~100 times faster)
+-   more than 90 % similarity
+
+
+## [62 Different bacterial genome](62BactrialSamples.md)
+
+-   20 Cores
+-   2100 to 4500 protein sequences per genome
+-   Protein Ortho ~4 hours
+-   Clusterfast: ~1 hours (~ 4 times faster)
+-   ~70% identical clusters
+-   ~20%  cluster between ProteinOrtho4. and ClusterFast had
+-   more 80% similarity (Figure A and B)
+
+!["Clusterfast and ProteinOrtho4 Cluster similarity for non-overlapping clusters"](Images/ClusterFastVsPortho.png)
+!["Clusterfast and ProteinOrtho4 Cluster percent similarity for non-overlapping clusters"](Images/Cs_Po_clusterSim.png)
+
+# Request
+
+All improvement suggestions and critics are welcome.
 
 # ToDo
 
-- Py27 compatible
-- More optimisations
+-   Py27 compatible
+-   More optimisations
