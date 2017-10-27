@@ -1,10 +1,10 @@
 # About
 
-ClusterFast is a scalable, rapid and (CPU and memory) efficient command-line interface for the clustering of orthologous proteins encoded by multiple genomes. ClusterFast was developed by the MiDEP group at the [Malawi Liverpool Wellcome Trust Clinical Research Programme](http://www.mlw.medcol.mw/) (members of [H3ABionet](http://www.h3abionet.org/)), after they became frustrated by the long run time and large memory requirements of currently avaliable clustering programs.
+ClusterFast is a scalable, rapid and (CPU and memory) efficient command-line interface for the clustering of orthologous proteins encoded in multiple genomic samples. ClusterFast was developed by the MiDEP group at the [Malawi Liverpool Wellcome Trust Clinical Research Programme](http://www.mlw.medcol.mw/) (members of [H3ABionet](http://www.h3abionet.org/)), after they became frustrated by the long run time and large memory requirements of avaliable clustering programs.
 
-ClusterFast works by first grouping the most similar protein sequences encoded between a random pair of genomes (files) within the input dataset, then choosing the longest sequence for further comparison to protein sequences selected from another pair of genomes until only one file remains. This is then used to identify less similar or paralogous sequences. The tool is suitable for use with both prokaryotic and eukaryotic genomes. By employing this novel approach, ClusterFast substantially reduces the memory and processing time required for the clustering of orthologous proteins compared to other avaliable programs.
+ClusterFast works by first grouping the most similar protein sequences encoded between a random pair of genomes (files) within the input dataset, then choosing the longest sequence for further comparison to protein sequences selected from another pair of genomes until only one file remains. This is then used to identify less similar distantaly related sequences. The tool is suitable for use with both prokaryotic and eukaryotic genomes. By employing this novel approach, ClusterFast substantially reduces the memory and processing time required for the clustering of orthologous proteins compared to other avaliable programs.
 
-Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core. Using a test dataset of 62 bacterial genomes composed of multiple different specieis, ClusterFast excecuted in ~1 hour on X cores?
+Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core. Using a test dataset of 62 bacterial genomes composed of multiple different specieis, ClusterFast excecuted in ~1 hour on 20 cores?
 
 ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and ProteinOrtho4.0 algorithm.
 
@@ -27,7 +27,7 @@ There are a number of dependencies required for ClusterFast, with instructions s
 -   BioPython
 -   NetworkX
 
-_Modules should be installed using ClusterFast installation._
+_Modules should be installed by ClusterFast installation._
 
 # Installation
 _Note: user might need to be the root_
@@ -107,9 +107,12 @@ The benchmarking was performed comapare to ProteinOrtho4.0 on two different data
 -   Clusterfast: ~1 hours (~ 4 times faster)
 -   ~70% identical clusters
 -   ~20%  cluster between ProteinOrtho4. and ClusterFast had
--   more 80% similarity (Figure A and B)
+-   ~70% indetical clusters among two tools
 
+Figure 1: Partially overlapping clusters between clusterFast and ProteinOrtho4. X and y axis show the size of cluster genarated by ClusterFast and ProtienOrtho. The size of the circle shape shows overlap of protein ids between ClusterFast and ProteinOrtho. Size of the circle is proportional to $\dfrac{2*size of overlapping sequences}{sizeofclusterfastcluster+sizeofproteinorthocluster}$
 !["Clusterfast and ProteinOrtho4 Cluster similarity for non-overlapping clusters"](Images/ClusterFastVsPortho.png)
+
+Figure 2: Distribution of overlapping clusters having more than 50% similarity between ClusterFast and ProteinOrtho4.
 !["Clusterfast and ProteinOrtho4 Cluster percent similarity for non-overlapping clusters"](Images/Cs_Po_clusterSim.png)
 
 # Request
