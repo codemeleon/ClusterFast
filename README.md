@@ -104,12 +104,14 @@ The benchmarking was performed comapare to ProteinOrtho4.0 on two different data
 -   20 Cores
 -   2100 to 4500 protein sequences per genome
 -   Protein Ortho ~4 hours
--   Clusterfast: ~1 hours (~ 4 times faster)
+-   Clusterfast: ~1 hours (4 times faster)
 -   ~70% identical clusters
 -   ~20%  cluster between ProteinOrtho4. and ClusterFast had
 -   ~70% indetical clusters among two tools
 
-Figure 1: Partially overlapping clusters between clusterFast and ProteinOrtho4. X and y axis show the size of cluster genarated by ClusterFast and ProtienOrtho. The size of the circle shape shows overlap of protein ids between ClusterFast and ProteinOrtho. Size of the circle is proportional to $\dfrac{2*size of overlapping sequences}{sizeofclusterfastcluster+sizeofproteinorthocluster}$
+
+Figure 1: Partially overlapping clusters between clusterFast and ProteinOrtho4. X and y axis show the size of cluster genarated by ClusterFast and ProtienOrtho. The size of the circle shape shows overlap of protein ids between ClusterFast and ProteinOrtho. Size of the circle is proportional to
+![equation](http://latex.codecogs.com/png.latex?\frac{2*sizeOfOverlappingSequencesCluster}{sizeOfClusterFastCluster+sizeOfProteinOrthoCluster})
 !["Clusterfast and ProteinOrtho4 Cluster similarity for non-overlapping clusters"](Images/ClusterFastVsPortho.png)
 
 Figure 2: Distribution of overlapping clusters having more than 50% similarity between ClusterFast and ProteinOrtho4.
