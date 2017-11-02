@@ -4,9 +4,9 @@ ClusterFast is a scalable, rapid and (CPU and memory) efficient command-line int
 
 ClusterFast works by first grouping the most similar protein sequences encoded between a random pair of genomes (files) within the input dataset, then choosing the longest sequence for further comparison to protein sequences selected from another pair of genomes until only one file remains. This is then used to identify less similar distantaly related sequences. The tool is suitable for use with both prokaryotic and eukaryotic genomes. By employing this novel approach, ClusterFast substantially reduces the memory and processing time required for the clustering of orthologous proteins compared to other avaliable programs.
 
-Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core. Using a test dataset of 62 bacterial genomes composed of multiple different specieis, ClusterFast excecuted in ~1 hour on 20 cores?
+Using a test dataset of 140 pneumococcal genomes (each 2.5Mbp in size and encoding ~1500 genes), ClusterFast successfully executed in ~5 minutes on a single core. Using a test dataset of 62 bacterial genomes composed of multiple different specieis, ClusterFast excecuted in ~1 hour on 20 cores.
 
-ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and ProteinOrtho4.0 algorithm.
+ClusterFast is written in Python and uses PBLAT (multicore BLAT), BLAST and the ProteinOrtho4.0 algorithm.
 
 # External tools
 
@@ -54,20 +54,20 @@ clusterfast -faaf < protein_seq_folder > -identity < sequence_similarity > -ncor
 
 
 -   --help/-h : Help
--   -faaf: Folder contain protein fasta files with file extension **.faa**
+-   -faaf: Folder containing protein fasta files with file extension **.faa**
 -   -identity: Similarity between sequences. Defaults: 0.8 for closly related samples and 0.25 for distantly related samples
--   -ncor: Number of processor to use
+-   -ncor: Number of processors to use
 -   -outfile: Output file path
 -   -pblat: Path for pblat executable. Default: pblat
 -   -makeblastdb: Path for makeblastdb executable. Default: makeblastdb
 -   -blastp: Path for blastp executable. Default: blastp
 -   -evalue: BLAST evalue. Default: 1e-10
--   -distant: Are samples distaly related? Default: False
+-   -distant: Are samples distantly related? Default: False
 -   -seed: For random file pairing. Default: 1234
 -   -minlen: Minimun length of sequences used in clustering. Default: 50
 -   -mindiff: Length of smaller sequences relative longer, to consider a blast hit. Default: 0.5
--   minmap: Minimum mapping length relative to longer sequence in pair. Default: 0.5
--   conn_threshold: Connection Threshold used in ProteinOrtho4.0. Default: 0.1
+-   -minmap: Minimum mapping length relative to the longer sequence in the pair. Default: 0.5
+-   -conn_threshold: Connection threshold used in ProteinOrtho4.0. Default: 0.1
 -   -adaptive: Adapative search value as in ProteinOrtho4. Default: 0.95
 -   -algo: For different Identity calculation method. Default: anm
 
@@ -110,11 +110,11 @@ The benchmarking was performed comapare to ProteinOrtho4.0 on two different data
 -   ~70% indetical clusters among two tools
 
 
-Figure 1: Partially overlapping clusters between clusterFast and ProteinOrtho4. X and y axis show the size of cluster genarated by ClusterFast and ProtienOrtho. The size of the circle shape shows overlap of protein ids between ClusterFast and ProteinOrtho. Size of the circle is proportional to
+Figure 1:  Shows a direct comparison of the number of orthologous amino acid sequences present in the clusters produced by ClusterFast compared to those produced by ProteinOrtho. A linear relationship can be observed between the two. The size of the data points indicates the degree of overlap in the protein IDs assigned to the amino acid sequences in each ClusterFast versus ProteinOrtho cluster; the larger the data point the higher the degree of overlap.
 ![equation](http://latex.codecogs.com/png.latex?\frac{2*sizeOfOverlappingSequencesCluster}{sizeOfClusterFastCluster+sizeOfProteinOrthoCluster})
 !["Clusterfast and ProteinOrtho4 Cluster similarity for non-overlapping clusters"](Images/ClusterFastVsPortho.png)
 
-Figure 2: Distribution of overlapping clusters having more than 50% similarity between ClusterFast and ProteinOrtho4.
+Figure 2: Shows the frequency (dark grey) and cumulative frequency (light grey) of the non-overlapping clusters of a given content percentage similarity produced by ClusterFast compared to ProteinOrtho. All of the clusters showed >50% content similarity.
 !["Clusterfast and ProteinOrtho4 Cluster percent similarity for non-overlapping clusters"](Images/Cs_Po_clusterSim.png)
 
 # Request
