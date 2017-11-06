@@ -112,6 +112,7 @@ The benchmarking was performed comapare to ProteinOrtho4.0 on two different data
 
 Figure 1:  Shows a direct comparison of the number of orthologous amino acid sequences present in the clusters produced by ClusterFast compared to those produced by ProteinOrtho. A linear relationship can be observed between the two. The size of the data points indicates the degree of overlap in the protein IDs assigned to the amino acid sequences in each ClusterFast versus ProteinOrtho cluster; the larger the data point the higher the degree of overlap.
 ![equation](http://latex.codecogs.com/png.latex?\frac{2*sizeOfOverlappingSequencesCluster}{sizeOfClusterFastCluster+sizeOfProteinOrthoCluster})
+
 !["Clusterfast and ProteinOrtho4 Cluster similarity for non-overlapping clusters"](Images/ClusterFastVsPortho.png)
 
 Figure 2: Shows the frequency (dark grey) and cumulative frequency (light grey) of the non-overlapping clusters of a given content percentage similarity produced by ClusterFast compared to ProteinOrtho. All of the clusters showed >50% content similarity.
