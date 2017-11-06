@@ -116,6 +116,7 @@ Figure 1:  Shows a direct comparison of the number of orthologous amino acid seq
 !["Clusterfast and ProteinOrtho4 Cluster similarity for non-overlapping clusters"](Images/ClusterFastVsPortho.png)
 
 Figure 2: Shows the frequency (dark grey) and cumulative frequency (light grey) of the non-overlapping clusters of a given content percentage similarity produced by ClusterFast compared to ProteinOrtho. All of the clusters showed >50% content similarity.
+
 !["Clusterfast and ProteinOrtho4 Cluster percent similarity for non-overlapping clusters"](Images/Cs_Po_clusterSim.png)
 
 # Request
