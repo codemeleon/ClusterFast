@@ -88,8 +88,8 @@ def blast_dataframe(mapped2, mindiff, minmap, algo):
             mapped[3] + mapped[['q_r', 'd_r']].max(axis=1) +
             mapped[[6, 8]].max(axis=1)))
         mapped = mapped.drop(['q_r', 'd_r'], axis=1)
-        mapped = mapped.rename(columns={0: "db", 1: "qr",
-                                        10: "eval", 11: "bits"})
+    mapped = mapped.rename(columns={0: "db", 1: "qr",
+                                    10: "eval", 11: "bits"})
     return mapped
 
 
